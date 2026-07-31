@@ -5,16 +5,9 @@
  * basta substituir `loadTransactions()` pela leitura da planilha.
  */
 
-export type Transaction = {
-  id: string;
-  date: string; // ISO yyyy-mm-dd
-  type: "receita" | "despesa";
-  category: string;
-  description: string;
-  account: string;
-  method: string;
-  amount: number;
-};
+import type { DashboardData, Transaction } from "./finance.types";
+
+export type { Transaction };
 
 export const EXPENSE_CATEGORIES = [
   "Supermercado",
@@ -141,7 +134,7 @@ const MONTH_LABELS = [
   "jul", "ago", "set", "out", "nov", "dez",
 ];
 
-export function buildDashboard() {
+export function buildDashboard(): DashboardData {
   const tx = loadTransactions();
   const now = new Date();
   const current = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
@@ -250,5 +243,3 @@ export function buildDashboard() {
     source: "Base de exemplo (Google Sheets conecta na próxima etapa)",
   };
 }
-
-export type DashboardData = ReturnType<typeof buildDashboard>;

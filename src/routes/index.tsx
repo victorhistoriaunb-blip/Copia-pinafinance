@@ -11,6 +11,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { getDashboard } from "@/lib/finance.functions";
+import type { DashboardData } from "@/lib/finance.types";
 import { logout } from "@/lib/gate.functions";
 import { AppShell } from "@/components/dashboard/app-shell";
 import { KpiCard } from "@/components/dashboard/kpi-card";
@@ -50,7 +51,7 @@ const brl = (n: number) =>
   n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 
 function Dashboard() {
-  const data = Route.useLoaderData();
+  const data = Route.useLoaderData() as DashboardData;
   const router = useRouter();
   const doLogout = useServerFn(logout);
   const { kpis, monthly, categories, daily, goal, insights, recent } = data;
