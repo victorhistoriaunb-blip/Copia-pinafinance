@@ -11,6 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as GatedRouteImport } from './routes/_gated'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as GatedIndexRouteImport } from './routes/_gated.index'
+import { Route as GatedImportarRouteImport } from './routes/_gated.importar'
 
 const GatedRoute = GatedRouteImport.update({
   id: '/_gated',
@@ -21,30 +23,44 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GatedIndexRoute = GatedIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => GatedRoute,
+} as any)
+const GatedImportarRoute = GatedImportarRouteImport.update({
+  id: '/importar',
+  path: '/importar',
+  getParentRoute: () => GatedRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof GatedRoute
+  '/': typeof GatedIndexRoute
   '/login': typeof LoginRoute
+  '/importar': typeof GatedImportarRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof GatedRoute
   '/login': typeof LoginRoute
+  '/importar': typeof GatedImportarRoute
+  '/': typeof GatedIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/_gated': typeof GatedRoute
+  '/_gated': typeof GatedRouteWithChildren
   '/login': typeof LoginRoute
+  '/_gated/importar': typeof GatedImportarRoute
+  '/_gated/': typeof GatedIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login'
+  fullPaths: '/' | '/login' | '/importar'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login'
-  id: '__root__' | '/_gated' | '/login'
+  to: '/login' | '/importar' | '/'
+  id: '__root__' | '/_gated' | '/login' | '/_gated/importar' | '/_gated/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  GatedRoute: typeof GatedRoute
+  GatedRoute: typeof GatedRouteWithChildren
   LoginRoute: typeof LoginRoute
 }
 
@@ -64,11 +80,37 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_gated/': {
+      id: '/_gated/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof GatedIndexRouteImport
+      parentRoute: typeof GatedRoute
+    }
+    '/_gated/importar': {
+      id: '/_gated/importar'
+      path: '/importar'
+      fullPath: '/importar'
+      preLoaderRoute: typeof GatedImportarRouteImport
+      parentRoute: typeof GatedRoute
+    }
   }
 }
 
+interface GatedRouteChildren {
+  GatedImportarRoute: typeof GatedImportarRoute
+  GatedIndexRoute: typeof GatedIndexRoute
+}
+
+const GatedRouteChildren: GatedRouteChildren = {
+  GatedImportarRoute: GatedImportarRoute,
+  GatedIndexRoute: GatedIndexRoute,
+}
+
+const GatedRouteWithChildren = GatedRoute._addFileChildren(GatedRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
-  GatedRoute: GatedRoute,
+  GatedRoute: GatedRouteWithChildren,
   LoginRoute: LoginRoute,
 }
 export const routeTree = rootRouteImport
