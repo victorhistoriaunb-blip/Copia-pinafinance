@@ -74,7 +74,7 @@ function SidebarBody({ onNavigate, onLogout }: { onNavigate?: () => void; onLogo
           <Sparkles className="size-4 text-primary-foreground" />
         </span>
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold">Finance BI</p>
+          <p className="truncate text-sm font-semibold">PINA Finanças</p>
           <p className="truncate text-xs text-muted-foreground">Controle pessoal</p>
         </div>
       </div>

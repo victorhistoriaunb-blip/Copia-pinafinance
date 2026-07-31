@@ -77,7 +77,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Finance BI · Dashboard Financeiro Pessoal" },
+      { title: "PINA Finanças · Dashboard Financeiro Pessoal" },
       {
         name: "description",
         content:
