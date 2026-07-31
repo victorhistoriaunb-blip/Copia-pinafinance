@@ -27,13 +27,13 @@ import {
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Dashboard Financeiro Pessoal · Finance BI" },
+      { title: "Dashboard Financeiro Pessoal · PINA Finanças" },
       {
         name: "description",
         content:
           "Painel visual com saldo, receitas, despesas, economia, categorias, metas e insights do seu mês.",
       },
-      { property: "og:title", content: "Dashboard Financeiro Pessoal · Finance BI" },
+      { property: "og:title", content: "Dashboard Financeiro Pessoal · PINA Finanças" },
       {
         property: "og:description",
         content: "Saldo, receitas, despesas, categorias e metas em um painel moderno.",

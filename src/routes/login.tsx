@@ -9,13 +9,13 @@ import logo from "@/assets/logo.png";
 export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
-      { title: "Entrar · Finance BI — Dashboard Financeiro" },
+      { title: "Entrar · PINA Finanças — Dashboard Financeiro" },
       {
         name: "description",
         content:
           "Acesse seu dashboard financeiro pessoal com visão de receitas, despesas, categorias e metas.",
       },
-      { property: "og:title", content: "Entrar · Finance BI" },
+      { property: "og:title", content: "Entrar · PINA Finanças" },
       {
         property: "og:description",
         content: "Área protegida do seu dashboard financeiro pessoal.",
@@ -78,7 +78,7 @@ function LoginPage() {
         <div className="flex flex-col items-center text-center">
           <motion.img
             src={logo}
-            alt="Finance BI"
+            alt="PINA Finanças"
             width={512}
             height={512}
             initial={{ opacity: 0, y: -8 }}
@@ -86,7 +86,7 @@ function LoginPage() {
             transition={{ delay: 0.15, duration: 0.5 }}
             className="size-16 object-contain"
           />
-          <h1 className="mt-3 text-xl font-semibold tracking-tight">Finance BI</h1>
+          <h1 className="mt-3 text-xl font-semibold tracking-tight">PINA Finanças</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Acesso protegido ao seu painel financeiro
           </p>
