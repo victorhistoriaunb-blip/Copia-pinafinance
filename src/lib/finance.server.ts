@@ -196,7 +196,7 @@ export function buildDashboard(): DashboardData {
     });
   }
 
-  const goal = { name: "Reserva de emergência", target: 30000, saved: Math.round(Math.max(balance * 0.62, 0)) };
+  const goal = { name: "Reserva de emergência", target: 30000, saved: Math.round(Math.min(Math.max(balance * 0.62, 0), 30000 * 0.78)) };
 
   const biggest = inMonth(current, "despesa").sort((a, b) => b.amount - a.amount)[0];
   const topCategory = categories[0];
