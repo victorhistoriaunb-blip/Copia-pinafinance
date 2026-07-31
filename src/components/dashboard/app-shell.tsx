@@ -10,25 +10,27 @@ import {
   LayoutGrid,
   FileBarChart,
   Target,
-  Settings,
+  Upload,
   Menu,
   X,
   LogOut,
   Sparkles,
 } from "lucide-react";
+
 import { cn } from "@/lib/utils";
 
 const NAV = [
   { label: "Dashboard", icon: LayoutGrid, to: "/" as const, ready: true },
-  { label: "Dia", icon: CalendarDays, ready: false },
-  { label: "Semana", icon: CalendarRange, ready: false },
-  { label: "Mês", icon: Calendar, ready: false },
-  { label: "Ano", icon: CalendarClock, ready: false },
-  { label: "Categorias", icon: BarChart3, ready: false },
-  { label: "Relatórios", icon: FileBarChart, ready: false },
-  { label: "Metas", icon: Target, ready: false },
-  { label: "Configurações", icon: Settings, ready: false },
+  { label: "Importar Planilhas", icon: Upload, to: "/importar" as const, ready: true },
+  { label: "Dia", icon: CalendarDays, to: "/dia" as const, ready: true },
+  { label: "Semana", icon: CalendarRange, to: "/semana" as const, ready: true },
+  { label: "Mês", icon: Calendar, to: "/mes" as const, ready: true },
+  { label: "Ano", icon: CalendarClock, to: "/ano" as const, ready: true },
+  { label: "Categorias", icon: BarChart3, to: "/categorias" as const, ready: true },
+  { label: "Relatórios", icon: FileBarChart, to: "/relatorios" as const, ready: true },
+  { label: "Metas", icon: Target, to: "/metas" as const, ready: true },
 ];
+
 
 function NavList({ onNavigate }: { onNavigate?: () => void }) {
   return (

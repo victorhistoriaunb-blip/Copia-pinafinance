@@ -12,9 +12,13 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as GatedRouteImport } from './routes/_gated'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as GatedIndexRouteImport } from './routes/_gated.index'
+import { Route as GatedAnoRouteImport } from './routes/_gated.ano'
+import { Route as GatedCategoriasRouteImport } from './routes/_gated.categorias'
 import { Route as GatedDiaRouteImport } from './routes/_gated.dia'
 import { Route as GatedImportarRouteImport } from './routes/_gated.importar'
 import { Route as GatedMesRouteImport } from './routes/_gated.mes'
+import { Route as GatedMetasRouteImport } from './routes/_gated.metas'
+import { Route as GatedRelatoriosRouteImport } from './routes/_gated.relatorios'
 import { Route as GatedSemanaRouteImport } from './routes/_gated.semana'
 
 const GatedRoute = GatedRouteImport.update({
@@ -29,6 +33,16 @@ const LoginRoute = LoginRouteImport.update({
 const GatedIndexRoute = GatedIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => GatedRoute,
+} as any)
+const GatedAnoRoute = GatedAnoRouteImport.update({
+  id: '/ano',
+  path: '/ano',
+  getParentRoute: () => GatedRoute,
+} as any)
+const GatedCategoriasRoute = GatedCategoriasRouteImport.update({
+  id: '/categorias',
+  path: '/categorias',
   getParentRoute: () => GatedRoute,
 } as any)
 const GatedDiaRoute = GatedDiaRouteImport.update({
@@ -46,6 +60,16 @@ const GatedMesRoute = GatedMesRouteImport.update({
   path: '/mes',
   getParentRoute: () => GatedRoute,
 } as any)
+const GatedMetasRoute = GatedMetasRouteImport.update({
+  id: '/metas',
+  path: '/metas',
+  getParentRoute: () => GatedRoute,
+} as any)
+const GatedRelatoriosRoute = GatedRelatoriosRouteImport.update({
+  id: '/relatorios',
+  path: '/relatorios',
+  getParentRoute: () => GatedRoute,
+} as any)
 const GatedSemanaRoute = GatedSemanaRouteImport.update({
   id: '/semana',
   path: '/semana',
@@ -55,16 +79,24 @@ const GatedSemanaRoute = GatedSemanaRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof GatedIndexRoute
   '/login': typeof LoginRoute
+  '/ano': typeof GatedAnoRoute
+  '/categorias': typeof GatedCategoriasRoute
   '/dia': typeof GatedDiaRoute
   '/importar': typeof GatedImportarRoute
   '/mes': typeof GatedMesRoute
+  '/metas': typeof GatedMetasRoute
+  '/relatorios': typeof GatedRelatoriosRoute
   '/semana': typeof GatedSemanaRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
+  '/ano': typeof GatedAnoRoute
+  '/categorias': typeof GatedCategoriasRoute
   '/dia': typeof GatedDiaRoute
   '/importar': typeof GatedImportarRoute
   '/mes': typeof GatedMesRoute
+  '/metas': typeof GatedMetasRoute
+  '/relatorios': typeof GatedRelatoriosRoute
   '/semana': typeof GatedSemanaRoute
   '/': typeof GatedIndexRoute
 }
@@ -72,24 +104,52 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_gated': typeof GatedRouteWithChildren
   '/login': typeof LoginRoute
+  '/_gated/ano': typeof GatedAnoRoute
+  '/_gated/categorias': typeof GatedCategoriasRoute
   '/_gated/dia': typeof GatedDiaRoute
   '/_gated/importar': typeof GatedImportarRoute
   '/_gated/mes': typeof GatedMesRoute
+  '/_gated/metas': typeof GatedMetasRoute
+  '/_gated/relatorios': typeof GatedRelatoriosRoute
   '/_gated/semana': typeof GatedSemanaRoute
   '/_gated/': typeof GatedIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/dia' | '/importar' | '/mes' | '/semana'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/ano'
+    | '/categorias'
+    | '/dia'
+    | '/importar'
+    | '/mes'
+    | '/metas'
+    | '/relatorios'
+    | '/semana'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login' | '/dia' | '/importar' | '/mes' | '/semana' | '/'
+  to:
+    | '/login'
+    | '/ano'
+    | '/categorias'
+    | '/dia'
+    | '/importar'
+    | '/mes'
+    | '/metas'
+    | '/relatorios'
+    | '/semana'
+    | '/'
   id:
     | '__root__'
     | '/_gated'
     | '/login'
+    | '/_gated/ano'
+    | '/_gated/categorias'
     | '/_gated/dia'
     | '/_gated/importar'
     | '/_gated/mes'
+    | '/_gated/metas'
+    | '/_gated/relatorios'
     | '/_gated/semana'
     | '/_gated/'
   fileRoutesById: FileRoutesById
@@ -122,6 +182,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GatedIndexRouteImport
       parentRoute: typeof GatedRoute
     }
+    '/_gated/ano': {
+      id: '/_gated/ano'
+      path: '/ano'
+      fullPath: '/ano'
+      preLoaderRoute: typeof GatedAnoRouteImport
+      parentRoute: typeof GatedRoute
+    }
+    '/_gated/categorias': {
+      id: '/_gated/categorias'
+      path: '/categorias'
+      fullPath: '/categorias'
+      preLoaderRoute: typeof GatedCategoriasRouteImport
+      parentRoute: typeof GatedRoute
+    }
     '/_gated/dia': {
       id: '/_gated/dia'
       path: '/dia'
@@ -143,6 +217,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GatedMesRouteImport
       parentRoute: typeof GatedRoute
     }
+    '/_gated/metas': {
+      id: '/_gated/metas'
+      path: '/metas'
+      fullPath: '/metas'
+      preLoaderRoute: typeof GatedMetasRouteImport
+      parentRoute: typeof GatedRoute
+    }
+    '/_gated/relatorios': {
+      id: '/_gated/relatorios'
+      path: '/relatorios'
+      fullPath: '/relatorios'
+      preLoaderRoute: typeof GatedRelatoriosRouteImport
+      parentRoute: typeof GatedRoute
+    }
     '/_gated/semana': {
       id: '/_gated/semana'
       path: '/semana'
@@ -154,17 +242,25 @@ declare module '@tanstack/react-router' {
 }
 
 interface GatedRouteChildren {
+  GatedAnoRoute: typeof GatedAnoRoute
+  GatedCategoriasRoute: typeof GatedCategoriasRoute
   GatedDiaRoute: typeof GatedDiaRoute
   GatedImportarRoute: typeof GatedImportarRoute
   GatedMesRoute: typeof GatedMesRoute
+  GatedMetasRoute: typeof GatedMetasRoute
+  GatedRelatoriosRoute: typeof GatedRelatoriosRoute
   GatedSemanaRoute: typeof GatedSemanaRoute
   GatedIndexRoute: typeof GatedIndexRoute
 }
 
 const GatedRouteChildren: GatedRouteChildren = {
+  GatedAnoRoute: GatedAnoRoute,
+  GatedCategoriasRoute: GatedCategoriasRoute,
   GatedDiaRoute: GatedDiaRoute,
   GatedImportarRoute: GatedImportarRoute,
   GatedMesRoute: GatedMesRoute,
+  GatedMetasRoute: GatedMetasRoute,
+  GatedRelatoriosRoute: GatedRelatoriosRoute,
   GatedSemanaRoute: GatedSemanaRoute,
   GatedIndexRoute: GatedIndexRoute,
 }
