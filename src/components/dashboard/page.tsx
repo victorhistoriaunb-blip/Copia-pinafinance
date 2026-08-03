@@ -1,11 +1,12 @@
+import { useState } from "react";
 import { useRouter } from "@tanstack/react-router";
 import { Link } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
-import { FileSpreadsheet, Loader2 } from "lucide-react";
+import { FileSpreadsheet, Loader2, Plus } from "lucide-react";
 import type { ReactNode } from "react";
-import { logout } from "@/lib/gate.functions";
+import { useAuth } from "@/lib/auth-context";
 import { useFinance } from "@/lib/finance-store";
 import { AppShell } from "./app-shell";
+import { RecordDialog } from "./record-form";
 
 export function Page({
   title,
@@ -21,12 +22,12 @@ export function Page({
   children: ReactNode;
 }) {
   const router = useRouter();
-  const doLogout = useServerFn(logout);
+  const { signOut } = useAuth();
   const { ready, transactions } = useFinance();
 
   async function handleLogout() {
-    await doLogout();
-    await router.navigate({ to: "/login" });
+    await signOut();
+    await router.navigate({ to: "/login", replace: true });
   }
 
   return (
@@ -47,25 +48,52 @@ export function Page({
 }
 
 export function EmptyState() {
+  const [creating, setCreating] = useState(false);
   return (
     <div className="panel grid min-h-[50vh] place-items-center p-8 text-center">
+      {creating && <RecordDialog onClose={() => setCreating(false)} />}
       <div className="max-w-md">
-        <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-primary/12 text-primary">
+        <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-primary/15 text-primary">
           <FileSpreadsheet className="size-6" />
         </span>
-        <h2 className="mt-4 text-lg font-semibold tracking-tight">Nenhuma planilha importada</h2>
+        <h2 className="mt-4 text-lg font-semibold tracking-tight">Nenhum registro ainda</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          Importe seus arquivos Excel (.xlsx ou .xls) para alimentar automaticamente todos os
-          indicadores, gráficos e relatórios.
+          Você pode importar planilhas Excel (.xlsx ou .xls) ou cadastrar registros manualmente —
+          os dois caminhos alimentam automaticamente indicadores, gráficos e relatórios.
         </p>
-        <Link
-          to="/importar"
-          className="mt-6 inline-flex h-11 items-center justify-center rounded-xl bg-[image:var(--gradient-primary)] px-5 text-sm font-semibold text-primary-foreground transition-all duration-200 hover:brightness-110"
-        >
-          Importar planilhas
-        </Link>
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
+          <button
+            type="button"
+            onClick={() => setCreating(true)}
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[image:var(--gradient-primary)] px-5 text-sm font-semibold text-primary-foreground transition-all duration-200 hover:brightness-110"
+          >
+            <Plus className="size-4" /> Novo registro
+          </button>
+          <Link
+            to="/importar"
+            className="inline-flex h-11 items-center justify-center rounded-xl border border-border px-5 text-sm font-semibold text-foreground transition-colors hover:border-primary/60"
+          >
+            Importar planilhas
+          </Link>
+        </div>
       </div>
     </div>
+  );
+}
+
+export function NewRecordButton({ label = "Novo registro" }: { label?: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      {open && <RecordDialog onClose={() => setOpen(false)} />}
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="inline-flex h-10 items-center gap-2 rounded-xl bg-[image:var(--gradient-primary)] px-4 text-sm font-semibold text-primary-foreground transition-all hover:brightness-110"
+      >
+        <Plus className="size-4" /> {label}
+      </button>
+    </>
   );
 }
 
