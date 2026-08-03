@@ -1,19 +1,23 @@
 import { createFileRoute, redirect, Outlet } from "@tanstack/react-router";
-import { getGateStatus } from "@/lib/gate.functions";
+import { supabase } from "@/integrations/supabase/client";
 import { FinanceProvider } from "@/lib/finance-store";
+import { AuthProvider } from "@/lib/auth-context";
 
 export const Route = createFileRoute("/_gated")({
+  ssr: false,
   beforeLoad: async () => {
-    const { unlocked } = await getGateStatus();
-    if (!unlocked) throw redirect({ to: "/login" });
+    const { data, error } = await supabase.auth.getUser();
+    if (error || !data.user) throw redirect({ to: "/login" });
   },
   component: GatedLayout,
 });
 
 function GatedLayout() {
   return (
-    <FinanceProvider>
-      <Outlet />
-    </FinanceProvider>
+    <AuthProvider>
+      <FinanceProvider>
+        <Outlet />
+      </FinanceProvider>
+    </AuthProvider>
   );
 }

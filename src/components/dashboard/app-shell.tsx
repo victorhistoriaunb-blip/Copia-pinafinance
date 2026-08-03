@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { motion } from "motion/react";
 import {
@@ -8,76 +8,82 @@ import {
   Calendar,
   CalendarClock,
   LayoutGrid,
+  LayoutDashboard,
   FileBarChart,
   Target,
   Upload,
   Menu,
   X,
   LogOut,
-  Sparkles,
+  Wallet,
+  BookOpen,
+  Settings,
 } from "lucide-react";
 
-import { cn } from "@/lib/utils";
+import logo from "@/assets/logo.png";
+import { useFinance } from "@/lib/finance-store";
+import { useAuth } from "@/lib/auth-context";
 
-const NAV = [
-  { label: "Dashboard", icon: LayoutGrid, to: "/" as const, ready: true },
-  { label: "Importar Planilhas", icon: Upload, to: "/importar" as const, ready: true },
-  { label: "Dia", icon: CalendarDays, to: "/dia" as const, ready: true },
-  { label: "Semana", icon: CalendarRange, to: "/semana" as const, ready: true },
-  { label: "Mês", icon: Calendar, to: "/mes" as const, ready: true },
-  { label: "Ano", icon: CalendarClock, to: "/ano" as const, ready: true },
-  { label: "Categorias", icon: BarChart3, to: "/categorias" as const, ready: true },
-  { label: "Relatórios", icon: FileBarChart, to: "/relatorios" as const, ready: true },
-  { label: "Metas", icon: Target, to: "/metas" as const, ready: true },
-];
+const ACCENTS: Record<string, { primary: string; accent: string }> = {
+  azul: { primary: "oklch(0.623 0.188 259.8)", accent: "oklch(0.715 0.126 215.2)" },
+  violeta: { primary: "oklch(0.62 0.21 295)", accent: "oklch(0.72 0.14 320)" },
+  esmeralda: { primary: "oklch(0.65 0.15 162)", accent: "oklch(0.74 0.13 190)" },
+  ambar: { primary: "oklch(0.72 0.16 70)", accent: "oklch(0.78 0.14 95)" },
+  rosa: { primary: "oklch(0.65 0.2 350)", accent: "oklch(0.74 0.14 20)" },
+};
 
+function useNavItems() {
+  const { settings } = useFinance();
+  return [
+    { label: settings.labels.dashboard, icon: LayoutGrid, to: "/" as const },
+    { label: "Painéis", icon: LayoutDashboard, to: "/paineis" as const },
+    { label: settings.labels.contas, icon: Wallet, to: "/contas" as const },
+    { label: "Importar Planilhas", icon: Upload, to: "/importar" as const },
+    { label: "Dia", icon: CalendarDays, to: "/dia" as const },
+    { label: "Semana", icon: CalendarRange, to: "/semana" as const },
+    { label: "Mês", icon: Calendar, to: "/mes" as const },
+    { label: "Ano", icon: CalendarClock, to: "/ano" as const },
+    { label: "Categorias", icon: BarChart3, to: "/categorias" as const },
+    { label: settings.labels.relatorios, icon: FileBarChart, to: "/relatorios" as const },
+    { label: settings.labels.metas, icon: Target, to: "/metas" as const },
+    { label: "Como usar", icon: BookOpen, to: "/como-usar" as const },
+    { label: "Configurações", icon: Settings, to: "/configuracoes" as const },
+  ];
+}
 
 function NavList({ onNavigate }: { onNavigate?: () => void }) {
+  const items = useNavItems();
   return (
     <nav className="flex flex-col gap-1">
-      {NAV.map((item) =>
-        item.ready && item.to ? (
-          <Link
-            key={item.label}
-            to={item.to}
-            onClick={onNavigate}
-            activeProps={{
-              className: "bg-sidebar-accent text-sidebar-accent-foreground shadow-[inset_2px_0_0_0_var(--color-primary)]",
-            }}
-            className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground transition-colors duration-200 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-          >
-            <item.icon className="size-4 shrink-0" />
-            <span className="truncate">{item.label}</span>
-          </Link>
-        ) : (
-          <button
-            key={item.label}
-            type="button"
-            disabled
-            className="flex cursor-not-allowed items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground/45"
-          >
-            <item.icon className="size-4 shrink-0" />
-            <span className="truncate">{item.label}</span>
-            <span className="ml-auto rounded-full bg-sidebar-accent px-1.5 py-0.5 text-[10px] tracking-wide text-muted-foreground">
-              em breve
-            </span>
-          </button>
-        ),
-      )}
+      {items.map((item) => (
+        <Link
+          key={item.to}
+          to={item.to}
+          onClick={onNavigate}
+          activeOptions={{ exact: item.to === "/" }}
+          activeProps={{
+            className:
+              "bg-sidebar-accent text-sidebar-accent-foreground shadow-[inset_2px_0_0_0_var(--color-primary)]",
+          }}
+          className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground transition-colors duration-200 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+        >
+          <item.icon className="size-4 shrink-0" />
+          <span className="truncate">{item.label}</span>
+        </Link>
+      ))}
     </nav>
   );
 }
 
 function SidebarBody({ onNavigate, onLogout }: { onNavigate?: () => void; onLogout: () => void }) {
+  const { settings } = useFinance();
   return (
     <div className="flex h-full flex-col gap-6 p-4">
       <div className="flex items-center gap-3 px-2 pt-1">
-        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-[image:var(--gradient-primary)]">
-          <Sparkles className="size-4 text-primary-foreground" />
-        </span>
+        <img src={logo} alt={settings.appName} width={512} height={512} className="size-9 shrink-0 rounded-xl object-contain" />
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold">PINA Finanças</p>
-          <p className="truncate text-xs text-muted-foreground">Controle pessoal</p>
+          <p className="truncate text-sm font-semibold text-foreground">{settings.appName}</p>
+          <p className="truncate text-xs text-muted-foreground">{settings.tagline}</p>
         </div>
       </div>
 
@@ -91,7 +97,7 @@ function SidebarBody({ onNavigate, onLogout }: { onNavigate?: () => void; onLogo
       <button
         type="button"
         onClick={onLogout}
-        className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors duration-200 hover:bg-destructive/12 hover:text-destructive"
+        className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors duration-200 hover:bg-destructive/15 hover:text-destructive"
       >
         <LogOut className="size-4" />
         Sair
@@ -114,6 +120,20 @@ export function AppShell({
   onLogout: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const { settings } = useFinance();
+  const { name } = useAuth();
+
+  useEffect(() => {
+    const theme = ACCENTS[settings.accent] ?? ACCENTS["azul"]!;
+    const root = document.documentElement;
+    root.style.setProperty("--primary", theme.primary);
+    root.style.setProperty("--accent", theme.accent);
+    root.style.setProperty("--ring", theme.primary);
+    root.style.setProperty("--chart-1", theme.primary);
+    root.style.setProperty("--chart-2", theme.accent);
+  }, [settings.accent]);
+
+  const compact = settings.density === "compacta";
 
   return (
     <div className="flex min-h-screen w-full bg-background">
@@ -138,7 +158,7 @@ export function AppShell({
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="absolute top-4 right-3 grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-sidebar-accent"
+              className="absolute top-4 right-3 grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
               aria-label="Fechar menu"
             >
               <X className="size-4" />
@@ -149,7 +169,7 @@ export function AppShell({
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 border-b border-border bg-background/80 px-4 py-4 backdrop-blur-xl sm:px-6">
+        <header className="sticky top-0 z-30 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 border-b border-border bg-background/85 px-4 py-4 backdrop-blur-xl sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"
@@ -159,17 +179,28 @@ export function AppShell({
             >
               <Menu className="size-4" />
             </button>
+            <img
+              src={logo}
+              alt={settings.appName}
+              width={512}
+              height={512}
+              className="size-9 shrink-0 rounded-xl object-contain lg:hidden"
+            />
             <div className="min-w-0">
-              <h1 className="truncate text-lg font-semibold tracking-tight sm:text-xl">{title}</h1>
-              {subtitle && (
-                <p className="truncate text-xs text-muted-foreground sm:text-sm">{subtitle}</p>
-              )}
+              <p className="truncate text-[11px] font-semibold tracking-wide text-primary">
+                {settings.greeting}
+                {name ? `, ${name}` : ""}
+              </p>
+              <h1 className="truncate text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+                {title}
+              </h1>
+              {subtitle && <p className="truncate text-xs text-muted-foreground sm:text-sm">{subtitle}</p>}
             </div>
           </div>
           {actions}
         </header>
 
-        <main className="min-w-0 flex-1 p-4 sm:p-6">{children}</main>
+        <main className={`min-w-0 flex-1 ${compact ? "p-3 sm:p-4" : "p-4 sm:p-6"}`}>{children}</main>
       </div>
     </div>
   );

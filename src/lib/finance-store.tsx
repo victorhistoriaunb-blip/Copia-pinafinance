@@ -1,10 +1,28 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { idbGet, idbSet } from "./idb";
 import { parseFile } from "./xlsx-parse";
-import type { Goal, ImportedWorkbook, Transaction } from "./finance.types";
+import {
+  DEFAULT_SETTINGS,
+  paymentStatusOf,
+  type AppSettings,
+  type Goal,
+  type ImportedWorkbook,
+  type NewTransaction,
+  type Transaction,
+} from "./finance.types";
 
 const FILES_KEY = "workbooks";
+const RECORDS_KEY = "records";
 const GOAL_KEY = "goal";
+const SETTINGS_KEY = "settings";
 
 const DEFAULT_GOAL: Goal = { name: "Reserva de emergência", target: 30000 };
 
@@ -13,30 +31,78 @@ type Ctx = {
   files: ImportedWorkbook[];
   transactions: Transaction[];
   goal: Goal;
+  settings: AppSettings;
   importFiles: (files: File[]) => Promise<{ name: string; error?: string }[]>;
   removeFile: (id: string) => Promise<void>;
   clearAll: () => Promise<void>;
   saveGoal: (goal: Goal) => Promise<void>;
+  saveSettings: (settings: AppSettings) => Promise<void>;
+  addRecord: (data: NewTransaction) => Promise<Transaction>;
+  updateRecord: (id: string, data: Partial<Transaction>) => Promise<void>;
+  deleteRecord: (id: string) => Promise<void>;
 };
 
 const FinanceContext = createContext<Ctx | null>(null);
 
+/** Garante que registros antigos (versões anteriores) ganhem os novos campos. */
+function normalizeRecord(t: Partial<Transaction> & { id: string }): Transaction {
+  const amount = Number(t.amount ?? 0);
+  const paidAmount = Number(t.paidAmount ?? 0);
+  return {
+    id: t.id,
+    date: t.date ?? "",
+    type: t.type === "receita" ? "receita" : "despesa",
+    category: t.category ?? "",
+    description: t.description ?? "",
+    account: t.account ?? "",
+    method: t.method ?? "",
+    amount,
+    notes: t.notes ?? "",
+    paidAmount,
+    paymentDate: t.paymentDate ?? "",
+    status: t.status ?? paymentStatusOf(amount, paidAmount),
+    source: t.source ?? (t.fileId ? "planilha" : "manual"),
+    fileId: t.fileId ?? "",
+    fileName: t.fileName ?? "",
+    sheet: t.sheet ?? "",
+    ...(t.extra ? { extra: t.extra } : {}),
+  };
+}
+
 export function FinanceProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [files, setFiles] = useState<ImportedWorkbook[]>([]);
+  const [records, setRecords] = useState<Transaction[]>([]);
   const [goal, setGoal] = useState<Goal>(DEFAULT_GOAL);
+  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
 
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
-        const [stored, storedGoal] = await Promise.all([
+        const [storedFiles, storedRecords, storedGoal, storedSettings] = await Promise.all([
           idbGet<ImportedWorkbook[]>(FILES_KEY),
+          idbGet<Transaction[]>(RECORDS_KEY),
           idbGet<Goal>(GOAL_KEY),
+          idbGet<Partial<AppSettings>>(SETTINGS_KEY),
         ]);
         if (!alive) return;
-        if (stored) setFiles(stored);
+        if (storedFiles) setFiles(storedFiles);
+        if (storedRecords) {
+          setRecords(storedRecords.map(normalizeRecord));
+        } else if (storedFiles) {
+          // Migração das versões anteriores: registros vinham dentro dos arquivos.
+          const migrated = storedFiles.flatMap((f) => f.transactions.map(normalizeRecord));
+          setRecords(migrated);
+          if (migrated.length > 0) await idbSet(RECORDS_KEY, migrated);
+        }
         if (storedGoal) setGoal(storedGoal);
+        if (storedSettings)
+          setSettings({
+            ...DEFAULT_SETTINGS,
+            ...storedSettings,
+            labels: { ...DEFAULT_SETTINGS.labels, ...(storedSettings.labels ?? {}) },
+          });
       } catch {
         /* armazenamento indisponível */
       } finally {
@@ -48,7 +114,12 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const persist = useCallback(async (next: ImportedWorkbook[]) => {
+  const persistRecords = useCallback(async (next: Transaction[]) => {
+    setRecords(next);
+    await idbSet(RECORDS_KEY, next);
+  }, []);
+
+  const persistFiles = useCallback(async (next: ImportedWorkbook[]) => {
     setFiles(next);
     await idbSet(FILES_KEY, next);
   }, []);
@@ -56,7 +127,8 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
   const importFiles = useCallback<Ctx["importFiles"]>(
     async (incoming) => {
       const results: { name: string; error?: string }[] = [];
-      let next = [...files];
+      let nextFiles = [...files];
+      let nextRecords = [...records];
       for (const file of incoming) {
         if (!/\.(xlsx|xls|xlsm|csv)$/i.test(file.name)) {
           results.push({ name: file.name, error: "Formato não suportado. Use .xlsx ou .xls." });
@@ -64,42 +136,121 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         }
         try {
           const workbook = await parseFile(file);
-          next = [workbook, ...next.filter((f) => f.id !== workbook.id)];
+          nextFiles = [workbook, ...nextFiles.filter((f) => f.id !== workbook.id)];
+          nextRecords = [
+            ...workbook.transactions,
+            ...nextRecords.filter((r) => r.fileId !== workbook.id),
+          ];
           results.push({ name: file.name });
         } catch {
-          results.push({ name: file.name, error: "Não foi possível ler o arquivo. Ele pode estar corrompido ou protegido." });
+          results.push({
+            name: file.name,
+            error: "Não foi possível ler o arquivo. Ele pode estar corrompido ou protegido.",
+          });
         }
       }
-      await persist(next);
+      await persistFiles(nextFiles);
+      await persistRecords(nextRecords);
       return results;
     },
-    [files, persist],
+    [files, records, persistFiles, persistRecords],
   );
 
   const removeFile = useCallback(
     async (id: string) => {
-      await persist(files.filter((f) => f.id !== id));
+      await persistFiles(files.filter((f) => f.id !== id));
+      await persistRecords(records.filter((r) => r.fileId !== id));
     },
-    [files, persist],
+    [files, records, persistFiles, persistRecords],
   );
 
   const clearAll = useCallback(async () => {
-    await persist([]);
-  }, [persist]);
+    await persistFiles([]);
+    await persistRecords(records.filter((r) => r.source === "manual"));
+  }, [records, persistFiles, persistRecords]);
 
   const saveGoal = useCallback(async (next: Goal) => {
     setGoal(next);
     await idbSet(GOAL_KEY, next);
   }, []);
 
+  const saveSettings = useCallback(async (next: AppSettings) => {
+    setSettings(next);
+    await idbSet(SETTINGS_KEY, next);
+  }, []);
+
+  const addRecord = useCallback<Ctx["addRecord"]>(
+    async (data) => {
+      const record = normalizeRecord({
+        ...data,
+        id: `manual:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`,
+        source: "manual",
+        status: paymentStatusOf(data.amount, data.paidAmount),
+      });
+      await persistRecords([record, ...records]);
+      return record;
+    },
+    [records, persistRecords],
+  );
+
+  const updateRecord = useCallback<Ctx["updateRecord"]>(
+    async (id, data) => {
+      const next = records.map((r) => {
+        if (r.id !== id) return r;
+        const merged = { ...r, ...data };
+        return normalizeRecord({
+          ...merged,
+          status: paymentStatusOf(merged.amount, merged.paidAmount),
+        });
+      });
+      await persistRecords(next);
+    },
+    [records, persistRecords],
+  );
+
+  const deleteRecord = useCallback<Ctx["deleteRecord"]>(
+    async (id) => {
+      await persistRecords(records.filter((r) => r.id !== id));
+    },
+    [records, persistRecords],
+  );
+
   const transactions = useMemo(
-    () => files.flatMap((f) => f.transactions).sort((a, b) => (a.date < b.date ? 1 : -1)),
-    [files],
+    () => [...records].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)),
+    [records],
   );
 
   const value = useMemo(
-    () => ({ ready, files, transactions, goal, importFiles, removeFile, clearAll, saveGoal }),
-    [ready, files, transactions, goal, importFiles, removeFile, clearAll, saveGoal],
+    () => ({
+      ready,
+      files,
+      transactions,
+      goal,
+      settings,
+      importFiles,
+      removeFile,
+      clearAll,
+      saveGoal,
+      saveSettings,
+      addRecord,
+      updateRecord,
+      deleteRecord,
+    }),
+    [
+      ready,
+      files,
+      transactions,
+      goal,
+      settings,
+      importFiles,
+      removeFile,
+      clearAll,
+      saveGoal,
+      saveSettings,
+      addRecord,
+      updateRecord,
+      deleteRecord,
+    ],
   );
 
   return <FinanceContext.Provider value={value}>{children}</FinanceContext.Provider>;

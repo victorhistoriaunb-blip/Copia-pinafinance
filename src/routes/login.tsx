@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { motion } from "motion/react";
-import { Loader2, Lock, User } from "lucide-react";
-import { login } from "@/lib/gate.functions";
+import { Loader2, Lock, Mail, User } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable";
 import logo from "@/assets/logo.png";
 
 export const Route = createFileRoute("/login")({
@@ -28,32 +28,108 @@ export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
 
+type Mode = "entrar" | "criar" | "recuperar";
+
+const MODES: { id: Mode; label: string }[] = [
+  { id: "entrar", label: "Entrar" },
+  { id: "criar", label: "Criar conta" },
+  { id: "recuperar", label: "Esqueci a senha" },
+];
+
+const inputClass =
+  "w-full rounded-xl border border-input bg-background/60 py-2.5 pr-3 pl-9 text-sm text-foreground outline-none transition-all duration-200 placeholder:text-muted-foreground/80 focus:border-primary focus:ring-2 focus:ring-ring/35";
+
 function LoginPage() {
   const router = useRouter();
-  const doLogin = useServerFn(login);
+  const [mode, setMode] = useState<Mode>("entrar");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+
+  function reset(next: Mode) {
+    setMode(next);
+    setError(null);
+    setInfo(null);
+  }
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
-    const username = String(form.get("username") ?? "").trim();
+    const email = String(form.get("email") ?? "").trim();
     const password = String(form.get("password") ?? "");
-    if (!username || !password) {
-      setError("Preencha usuário e senha.");
-      return;
-    }
-    setPending(true);
+    const name = String(form.get("name") ?? "").trim();
+
     setError(null);
+    setInfo(null);
+
+    if (!email) return setError("Informe seu e-mail.");
+    if (mode !== "recuperar" && password.length < 6)
+      return setError("A senha precisa ter pelo menos 6 caracteres.");
+    if (mode === "criar" && !name) return setError("Informe seu nome.");
+
+    setPending(true);
     try {
-      const res = await doLogin({ data: { username, password } });
-      if (res.ok) {
+      if (mode === "entrar") {
+        const { error: err } = await supabase.auth.signInWithPassword({ email, password });
+        if (err) {
+          setError("E-mail ou senha inválidos.");
+          return;
+        }
         await router.navigate({ to: "/" });
+      } else if (mode === "criar") {
+        const { data, error: err } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: window.location.origin,
+            data: { full_name: name },
+          },
+        });
+        if (err) {
+          setError(
+            err.message.toLowerCase().includes("already")
+              ? "Já existe uma conta com esse e-mail. Faça login."
+              : "Não foi possível criar a conta. Tente novamente.",
+          );
+          return;
+        }
+        if (data.session) {
+          await router.navigate({ to: "/" });
+        } else {
+          setInfo("Conta criada! Confirme o e-mail que enviamos para ativar seu acesso.");
+        }
       } else {
-        setError("Usuário ou senha inválidos.");
+        const { error: err } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/reset-password`,
+        });
+        if (err) {
+          setError("Não foi possível enviar o e-mail de recuperação.");
+          return;
+        }
+        setInfo("Enviamos um link de redefinição para o seu e-mail.");
       }
     } catch {
-      setError("Não foi possível entrar. Tente novamente.");
+      setError("Não foi possível continuar. Tente novamente.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function onGoogle() {
+    setError(null);
+    setPending(true);
+    try {
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: window.location.origin,
+      });
+      if (result.error) {
+        setError("Não foi possível entrar com o Google.");
+        return;
+      }
+      if (result.redirected) return;
+      await router.navigate({ to: "/" });
+    } catch {
+      setError("Não foi possível entrar com o Google.");
     } finally {
       setPending(false);
     }
@@ -92,47 +168,88 @@ function LoginPage() {
           </p>
         </div>
 
-        <form onSubmit={onSubmit} className="mt-8 flex flex-col gap-4">
+        <div className="mt-6 grid grid-cols-3 gap-1 rounded-xl border border-border bg-background/50 p-1">
+          {MODES.map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => reset(m.id)}
+              className={`rounded-lg px-2 py-2 text-[11px] font-semibold transition-colors ${
+                mode === m.id
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+
+        <form onSubmit={onSubmit} className="mt-5 flex flex-col gap-4">
+          {mode === "criar" && (
+            <label className="flex flex-col gap-1.5">
+              <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                Nome
+              </span>
+              <span className="relative flex items-center">
+                <User className="pointer-events-none absolute left-3 size-4 text-muted-foreground" />
+                <input name="name" autoComplete="name" maxLength={80} placeholder="Seu nome" className={inputClass} />
+              </span>
+            </label>
+          )}
+
           <label className="flex flex-col gap-1.5">
             <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-              Usuário
+              E-mail
             </span>
             <span className="relative flex items-center">
-              <User className="pointer-events-none absolute left-3 size-4 text-muted-foreground" />
+              <Mail className="pointer-events-none absolute left-3 size-4 text-muted-foreground" />
               <input
-                name="username"
-                autoComplete="username"
-                maxLength={100}
-                placeholder="seu usuário"
-                className="w-full rounded-xl border border-input bg-background/60 py-2.5 pr-3 pl-9 text-sm outline-none transition-all duration-200 placeholder:text-muted-foreground/70 focus:border-primary focus:ring-2 focus:ring-ring/35"
+                name="email"
+                type="email"
+                autoComplete="email"
+                maxLength={160}
+                placeholder="voce@email.com"
+                className={inputClass}
               />
             </span>
           </label>
 
-          <label className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-              Senha
-            </span>
-            <span className="relative flex items-center">
-              <Lock className="pointer-events-none absolute left-3 size-4 text-muted-foreground" />
-              <input
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                maxLength={200}
-                placeholder="••••••••"
-                className="w-full rounded-xl border border-input bg-background/60 py-2.5 pr-3 pl-9 text-sm outline-none transition-all duration-200 placeholder:text-muted-foreground/70 focus:border-primary focus:ring-2 focus:ring-ring/35"
-              />
-            </span>
-          </label>
+          {mode !== "recuperar" && (
+            <label className="flex flex-col gap-1.5">
+              <span className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                Senha
+              </span>
+              <span className="relative flex items-center">
+                <Lock className="pointer-events-none absolute left-3 size-4 text-muted-foreground" />
+                <input
+                  name="password"
+                  type="password"
+                  autoComplete={mode === "criar" ? "new-password" : "current-password"}
+                  maxLength={200}
+                  placeholder="••••••••"
+                  className={inputClass}
+                />
+              </span>
+            </label>
+          )}
 
           {error && (
             <motion.p
               initial={{ opacity: 0, y: -4 }}
               animate={{ opacity: 1, y: 0 }}
-              className="rounded-lg bg-destructive/12 px-3 py-2 text-xs text-destructive"
+              className="rounded-lg bg-destructive/15 px-3 py-2 text-xs text-destructive"
             >
               {error}
+            </motion.p>
+          )}
+          {info && (
+            <motion.p
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="rounded-lg bg-success/15 px-3 py-2 text-xs text-success"
+            >
+              {info}
             </motion.p>
           )}
 
@@ -142,9 +259,27 @@ function LoginPage() {
             className="mt-1 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[image:var(--gradient-primary)] text-sm font-semibold text-primary-foreground transition-all duration-200 hover:brightness-110 active:scale-[0.985] disabled:opacity-70"
           >
             {pending && <Loader2 className="size-4 animate-spin" />}
-            Entrar
+            {mode === "entrar" ? "Entrar" : mode === "criar" ? "Criar conta" : "Enviar link"}
           </button>
         </form>
+
+        {mode !== "recuperar" && (
+          <>
+            <div className="my-5 flex items-center gap-3 text-[11px] text-muted-foreground">
+              <span className="h-px flex-1 bg-border" />
+              ou
+              <span className="h-px flex-1 bg-border" />
+            </div>
+            <button
+              type="button"
+              onClick={onGoogle}
+              disabled={pending}
+              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-border bg-card text-sm font-semibold text-foreground transition-colors hover:border-primary/50 disabled:opacity-70"
+            >
+              Continuar com Google
+            </button>
+          </>
+        )}
       </motion.div>
     </div>
   );

@@ -1,5 +1,6 @@
 import * as XLSX from "xlsx";
 import type { ImportIssue, ImportedWorkbook, SheetSummary, Transaction } from "./finance.types";
+import { paymentStatusOf } from "./finance.types";
 
 /** Normaliza cabeçalho: minúsculo, sem acento, sem pontuação. */
 function norm(v: unknown): string {
@@ -11,14 +12,22 @@ function norm(v: unknown): string {
     .trim();
 }
 
+/**
+ * Campos sugeridos. NENHUM é obrigatório — o que não existir na planilha
+ * simplesmente fica vazio no registro importado.
+ */
 const FIELD_SYNONYMS: Record<string, string[]> = {
-  date: ["data", "dia", "date", "competencia", "vencimento", "data pagamento", "data lancamento"],
-  description: ["descricao", "historico", "item", "lancamento", "nome", "detalhe", "titulo", "produto"],
-  category: ["categoria", "classificacao", "grupo", "tipo de gasto", "segmento"],
+  date: ["data", "dia", "date", "competencia", "vencimento", "data lancamento", "prazo"],
+  description: ["descricao", "historico", "item", "lancamento", "nome", "detalhe", "titulo", "produto", "cliente"],
+  category: ["categoria", "classificacao", "grupo", "tipo de gasto", "segmento", "setor"],
   type: ["tipo", "natureza", "entrada saida", "movimento", "operacao", "receita despesa"],
-  amount: ["valor", "montante", "total", "preco", "quantia", "valor r", "valor total", "vlr"],
-  account: ["conta", "banco", "carteira", "instituicao"],
+  amount: ["valor", "montante", "total", "preco", "quantia", "valor r", "valor total", "vlr", "valor previsto"],
+  account: ["conta", "banco", "carteira", "instituicao", "fornecedor"],
   method: ["forma de pagamento", "pagamento", "metodo", "forma", "meio de pagamento"],
+  notes: ["observacao", "observacoes", "obs", "nota", "notas", "comentario", "detalhes"],
+  status: ["status", "situacao", "pago", "quitado", "condicao"],
+  paidAmount: ["valor pago", "pago valor", "valor quitado", "recebido", "valor recebido"],
+  paymentDate: ["data pagamento", "data do pagamento", "pago em", "data quitacao", "data de pagamento"],
 };
 
 function matchField(header: string): string | null {
@@ -33,8 +42,10 @@ function matchField(header: string): string | null {
   return null;
 }
 
-const RECEITA_WORDS = ["receita", "entrada", "credito", "ganho", "salario", "provento", "deposito"];
-const DESPESA_WORDS = ["despesa", "saida", "debito", "gasto", "pagamento", "custo"];
+const RECEITA_WORDS = ["receita", "entrada", "credito", "ganho", "renda", "recebimento", "provento"];
+const DESPESA_WORDS = ["despesa", "saida", "debito", "gasto", "custo", "pagamento", "gastos"];
+const PAGO_WORDS = ["pago", "quitado", "recebido", "concluido", "ok", "sim", "liquidado", "finalizado"];
+const PARCIAL_WORDS = ["parcial", "parcialmente"];
 
 function parseAmount(raw: unknown): number | null {
   if (typeof raw === "number" && Number.isFinite(raw)) return raw;
@@ -82,27 +93,36 @@ function parseDate(raw: unknown): string | null {
   return null;
 }
 
-/** Encontra a linha de cabeçalho: a que reconhece mais colunas conhecidas. */
-function findHeaderRow(rows: unknown[][]): { index: number; map: Record<string, number>; columns: string[] } | null {
-  let best: { index: number; map: Record<string, number>; columns: string[]; score: number } | null = null;
+/**
+ * Encontra a linha de cabeçalho. Como nenhuma coluna é obrigatória, usamos a
+ * primeira linha com maior quantidade de rótulos preenchidos (com bônus para
+ * colunas reconhecidas), garantindo que qualquer estrutura de planilha funcione.
+ */
+function findHeaderRow(rows: unknown[][]) {
+  let best: { index: number; map: Record<string, number>; columns: string[]; labels: (string | null)[]; score: number } | null =
+    null;
   const limit = Math.min(rows.length, 25);
   for (let i = 0; i < limit; i++) {
     const row = rows[i] ?? [];
     const map: Record<string, number> = {};
     const columns: string[] = [];
+    const labels: (string | null)[] = [];
+    let filled = 0;
     row.forEach((cell, col) => {
       const label = String(cell ?? "").trim();
+      labels[col] = label || null;
       if (!label) return;
+      filled++;
       columns.push(label);
       const field = matchField(label);
       if (field && map[field] === undefined) map[field] = col;
     });
-    const score = Object.keys(map).length + (map.amount !== undefined ? 2 : 0) + (map.date !== undefined ? 2 : 0);
-    if (map.amount !== undefined && (!best || score > best.score)) {
-      best = { index: i, map, columns, score };
+    const score = filled + Object.keys(map).length * 2;
+    if (filled > 0 && (!best || score > best.score)) {
+      best = { index: i, map, columns, labels, score };
     }
   }
-  return best ? { index: best.index, map: best.map, columns: best.columns } : null;
+  return best;
 }
 
 export function parseWorkbook(fileId: string, fileName: string, buffer: ArrayBuffer) {
@@ -124,57 +144,74 @@ export function parseWorkbook(fileId: string, fileName: string, buffer: ArrayBuf
     const header = findHeaderRow(rows);
     if (!header) {
       sheets.push({ name: sheetName, rows: rows.length, imported: 0, skipped: rows.length, columns: [] });
-      issues.push({
-        level: "erro",
-        sheet: sheetName,
-        message: "Não foi possível identificar as colunas. É necessário ao menos uma coluna de Valor (e de preferência Data, Descrição, Categoria e Tipo).",
-      });
+      issues.push({ level: "aviso", sheet: sheetName, message: "Aba sem cabeçalho legível — nada foi importado." });
       continue;
     }
 
-    const { map } = header;
+    const { map, labels } = header;
+    const usedCols = new Set(Object.values(map));
     const body = rows.slice(header.index + 1);
     let imported = 0;
-    let noDate = 0;
-    let noAmount = 0;
+    let empty = 0;
 
     body.forEach((row, i) => {
+      const hasContent = row.some((c) => c !== null && String(c).trim() !== "");
+      if (!hasContent) {
+        empty++;
+        return;
+      }
       const cell = (field: string) => (map[field] === undefined ? null : row[map[field]]);
-      const amountRaw = parseAmount(cell("amount"));
-      if (amountRaw === null || amountRaw === 0) {
-        if (row.some((c) => c !== null && String(c).trim() !== "")) noAmount++;
-        return;
-      }
-      const date = parseDate(cell("date"));
-      if (!date) {
-        noDate++;
-        return;
-      }
+      const text = (field: string) => String(cell(field) ?? "").trim();
 
+      const amountRaw = parseAmount(cell("amount"));
+      const date = parseDate(cell("date")) ?? "";
       const typeText = norm(cell("type"));
-      const categoryText = String(cell("category") ?? "").trim();
+      const categoryText = text("category");
+
       let type: Transaction["type"];
       if (typeText && RECEITA_WORDS.some((w) => typeText.includes(w))) type = "receita";
       else if (typeText && DESPESA_WORDS.some((w) => typeText.includes(w))) type = "despesa";
-      else type = amountRaw < 0 ? "despesa" : typeText ? "despesa" : "receita";
-      if (!typeText && amountRaw > 0 && map.type === undefined) {
-        // sem coluna de tipo: positivo é receita apenas se a categoria sugerir
+      else if (amountRaw !== null && amountRaw < 0) type = "despesa";
+      else if (map.type === undefined) {
         const c = norm(categoryText);
         type = RECEITA_WORDS.some((w) => c.includes(w)) || c.includes("salario") ? "receita" : "despesa";
+      } else type = "despesa";
+
+      const amount = amountRaw === null ? 0 : Math.abs(amountRaw);
+      const statusText = norm(cell("status"));
+      const paidRaw = parseAmount(cell("paidAmount"));
+      let paidAmount = paidRaw === null ? 0 : Math.abs(paidRaw);
+      if (paidRaw === null && statusText) {
+        if (PARCIAL_WORDS.some((w) => statusText.includes(w))) paidAmount = amount / 2;
+        else if (PAGO_WORDS.some((w) => statusText === w || statusText.includes(w))) paidAmount = amount;
       }
+
+      const extra: Record<string, string> = {};
+      row.forEach((c, col) => {
+        if (usedCols.has(col)) return;
+        const label = labels[col];
+        const value = c === null ? "" : String(c).trim();
+        if (label && value) extra[label] = value;
+      });
 
       transactions.push({
         id: `${fileId}:${sheetName}:${i}`,
         date,
         type,
-        category: categoryText || "Sem categoria",
-        description: String(cell("description") ?? "").trim() || categoryText || "Lançamento",
-        account: String(cell("account") ?? "").trim() || "—",
-        method: String(cell("method") ?? "").trim() || "—",
-        amount: Math.abs(amountRaw),
+        category: categoryText,
+        description: text("description") || categoryText || `Registro ${i + 1}`,
+        account: text("account"),
+        method: text("method"),
+        amount,
+        notes: text("notes"),
+        paidAmount,
+        paymentDate: parseDate(cell("paymentDate")) ?? "",
+        status: paymentStatusOf(amount, paidAmount),
+        source: "planilha",
         fileId,
         fileName,
         sheet: sheetName,
+        ...(Object.keys(extra).length > 0 ? { extra } : {}),
       });
       imported++;
     });
@@ -183,20 +220,26 @@ export function parseWorkbook(fileId: string, fileName: string, buffer: ArrayBuf
       name: sheetName,
       rows: body.length,
       imported,
-      skipped: body.length - imported,
+      skipped: empty,
       columns: header.columns,
     });
 
-    if (noDate > 0)
-      issues.push({ level: "aviso", sheet: sheetName, message: "Linhas ignoradas por data inválida ou ausente.", count: noDate });
-    if (noAmount > 0)
-      issues.push({ level: "aviso", sheet: sheetName, message: "Linhas ignoradas por valor inválido ou vazio.", count: noAmount });
-    if (map.category === undefined)
-      issues.push({ level: "aviso", sheet: sheetName, message: "Coluna de Categoria não encontrada — lançamentos ficam em “Sem categoria”." });
-    if (map.type === undefined)
-      issues.push({ level: "aviso", sheet: sheetName, message: "Coluna de Tipo não encontrada — o tipo foi deduzido pelo sinal do valor." });
+    const missing = (["date", "amount", "category", "type"] as const).filter((f) => map[f] === undefined);
+    if (missing.length > 0) {
+      const names: Record<string, string> = {
+        date: "Data",
+        amount: "Valor",
+        category: "Categoria",
+        type: "Tipo",
+      };
+      issues.push({
+        level: "aviso",
+        sheet: sheetName,
+        message: `Colunas sugeridas não encontradas (${missing.map((m) => names[m]).join(", ")}). Os registros foram importados mesmo assim, com esses campos vazios — você pode preenchê-los editando cada registro.`,
+      });
+    }
     if (imported === 0 && body.length > 0)
-      issues.push({ level: "erro", sheet: sheetName, message: "Nenhuma linha válida foi importada nesta aba." });
+      issues.push({ level: "aviso", sheet: sheetName, message: "Nenhuma linha com conteúdo nesta aba." });
   }
 
   const workbook: ImportedWorkbook = {
