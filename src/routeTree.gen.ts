@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as GatedRouteImport } from './routes/_gated'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as GatedIndexRouteImport } from './routes/_gated.index'
 import { Route as GatedAnoRouteImport } from './routes/_gated.ano'
 import { Route as GatedCategoriasRouteImport } from './routes/_gated.categorias'
@@ -28,6 +29,11 @@ const GatedRoute = GatedRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GatedIndexRoute = GatedIndexRouteImport.update({
@@ -79,6 +85,7 @@ const GatedSemanaRoute = GatedSemanaRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof GatedIndexRoute
   '/login': typeof LoginRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/ano': typeof GatedAnoRoute
   '/categorias': typeof GatedCategoriasRoute
   '/dia': typeof GatedDiaRoute
@@ -90,6 +97,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/ano': typeof GatedAnoRoute
   '/categorias': typeof GatedCategoriasRoute
   '/dia': typeof GatedDiaRoute
@@ -104,6 +112,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_gated': typeof GatedRouteWithChildren
   '/login': typeof LoginRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/_gated/ano': typeof GatedAnoRoute
   '/_gated/categorias': typeof GatedCategoriasRoute
   '/_gated/dia': typeof GatedDiaRoute
@@ -119,6 +128,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/reset-password'
     | '/ano'
     | '/categorias'
     | '/dia'
@@ -130,6 +140,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
+    | '/reset-password'
     | '/ano'
     | '/categorias'
     | '/dia'
@@ -143,6 +154,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_gated'
     | '/login'
+    | '/reset-password'
     | '/_gated/ano'
     | '/_gated/categorias'
     | '/_gated/dia'
@@ -157,6 +169,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   GatedRoute: typeof GatedRouteWithChildren
   LoginRoute: typeof LoginRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -173,6 +186,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_gated/': {
@@ -270,17 +290,8 @@ const GatedRouteWithChildren = GatedRoute._addFileChildren(GatedRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   GatedRoute: GatedRouteWithChildren,
   LoginRoute: LoginRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
