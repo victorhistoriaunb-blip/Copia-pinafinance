@@ -77,7 +77,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "PINA Finanças · Dashboard Financeiro Pessoal" },
+      { title: "PINA Finanças · Controle financeiro" },
       {
         name: "description",
         content:
@@ -85,8 +85,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { property: "og:title", content: "PINA Finanças · Dashboard Financeiro Pessoal" },
-      { name: "twitter:title", content: "PINA Finanças · Dashboard Financeiro Pessoal" },
+      { property: "og:title", content: "PINA Finanças · Controle financeiro" },
+      { name: "twitter:title", content: "PINA Finanças · Controle financeiro" },
       { property: "og:description", content: "Dashboard financeiro pessoal com visão de receitas, despesas, categorias, metas e insights." },
       { name: "twitter:description", content: "Dashboard financeiro pessoal com visão de receitas, despesas, categorias, metas e insights." },
       { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/943ae7ba-a463-4d47-a167-47aa126afa4a/id-preview-3084ec94--a93cf677-0028-4fcc-9ccc-bf0066180772.lovable.app-1785466332412.png" },
