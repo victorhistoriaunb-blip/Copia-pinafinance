@@ -15,6 +15,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as GatedIndexRouteImport } from './routes/_gated.index'
 import { Route as GatedAnoRouteImport } from './routes/_gated.ano'
 import { Route as GatedCategoriasRouteImport } from './routes/_gated.categorias'
+import { Route as GatedContasRouteImport } from './routes/_gated.contas'
 import { Route as GatedDiaRouteImport } from './routes/_gated.dia'
 import { Route as GatedImportarRouteImport } from './routes/_gated.importar'
 import { Route as GatedMesRouteImport } from './routes/_gated.mes'
@@ -49,6 +50,11 @@ const GatedAnoRoute = GatedAnoRouteImport.update({
 const GatedCategoriasRoute = GatedCategoriasRouteImport.update({
   id: '/categorias',
   path: '/categorias',
+  getParentRoute: () => GatedRoute,
+} as any)
+const GatedContasRoute = GatedContasRouteImport.update({
+  id: '/contas',
+  path: '/contas',
   getParentRoute: () => GatedRoute,
 } as any)
 const GatedDiaRoute = GatedDiaRouteImport.update({
@@ -88,6 +94,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/ano': typeof GatedAnoRoute
   '/categorias': typeof GatedCategoriasRoute
+  '/contas': typeof GatedContasRoute
   '/dia': typeof GatedDiaRoute
   '/importar': typeof GatedImportarRoute
   '/mes': typeof GatedMesRoute
@@ -100,6 +107,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/ano': typeof GatedAnoRoute
   '/categorias': typeof GatedCategoriasRoute
+  '/contas': typeof GatedContasRoute
   '/dia': typeof GatedDiaRoute
   '/importar': typeof GatedImportarRoute
   '/mes': typeof GatedMesRoute
@@ -115,6 +123,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/_gated/ano': typeof GatedAnoRoute
   '/_gated/categorias': typeof GatedCategoriasRoute
+  '/_gated/contas': typeof GatedContasRoute
   '/_gated/dia': typeof GatedDiaRoute
   '/_gated/importar': typeof GatedImportarRoute
   '/_gated/mes': typeof GatedMesRoute
@@ -131,6 +140,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/ano'
     | '/categorias'
+    | '/contas'
     | '/dia'
     | '/importar'
     | '/mes'
@@ -143,6 +153,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/ano'
     | '/categorias'
+    | '/contas'
     | '/dia'
     | '/importar'
     | '/mes'
@@ -157,6 +168,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/_gated/ano'
     | '/_gated/categorias'
+    | '/_gated/contas'
     | '/_gated/dia'
     | '/_gated/importar'
     | '/_gated/mes'
@@ -216,6 +228,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GatedCategoriasRouteImport
       parentRoute: typeof GatedRoute
     }
+    '/_gated/contas': {
+      id: '/_gated/contas'
+      path: '/contas'
+      fullPath: '/contas'
+      preLoaderRoute: typeof GatedContasRouteImport
+      parentRoute: typeof GatedRoute
+    }
     '/_gated/dia': {
       id: '/_gated/dia'
       path: '/dia'
@@ -264,6 +283,7 @@ declare module '@tanstack/react-router' {
 interface GatedRouteChildren {
   GatedAnoRoute: typeof GatedAnoRoute
   GatedCategoriasRoute: typeof GatedCategoriasRoute
+  GatedContasRoute: typeof GatedContasRoute
   GatedDiaRoute: typeof GatedDiaRoute
   GatedImportarRoute: typeof GatedImportarRoute
   GatedMesRoute: typeof GatedMesRoute
@@ -276,6 +296,7 @@ interface GatedRouteChildren {
 const GatedRouteChildren: GatedRouteChildren = {
   GatedAnoRoute: GatedAnoRoute,
   GatedCategoriasRoute: GatedCategoriasRoute,
+  GatedContasRoute: GatedContasRoute,
   GatedDiaRoute: GatedDiaRoute,
   GatedImportarRoute: GatedImportarRoute,
   GatedMesRoute: GatedMesRoute,
