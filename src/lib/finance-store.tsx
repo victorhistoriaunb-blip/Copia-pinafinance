@@ -55,7 +55,7 @@ function normalizeRecord(t: Partial<Transaction> & { id: string }): Transaction 
     type: t.type === "receita" ? "receita" : "despesa",
     category: t.category ?? "",
     expenseKind: kind === "fixa" || kind === "variavel" ? kind : "nenhuma",
-    date_placeholder_removed: undefined as never,
+    
     description: t.description ?? "",
     account: t.account ?? "",
     method: t.method ?? "",
