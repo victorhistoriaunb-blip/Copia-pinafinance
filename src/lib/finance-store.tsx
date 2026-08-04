@@ -48,16 +48,24 @@ const FinanceContext = createContext<Ctx | null>(null);
 function normalizeRecord(t: Partial<Transaction> & { id: string }): Transaction {
   const amount = Number(t.amount ?? 0);
   const paidAmount = Number(t.paidAmount ?? 0);
+  const kind = t.expenseKind;
   return {
     id: t.id,
     date: t.date ?? "",
     type: t.type === "receita" ? "receita" : "despesa",
     category: t.category ?? "",
+    expenseKind: kind === "fixa" || kind === "variavel" ? kind : "nenhuma",
+    date_placeholder_removed: undefined as never,
     description: t.description ?? "",
     account: t.account ?? "",
     method: t.method ?? "",
+    dueDate: t.dueDate ?? "",
     amount,
     notes: t.notes ?? "",
+    details: t.details ?? "",
+    history: t.history ?? "",
+    links: t.links ?? "",
+    comments: t.comments ?? "",
     paidAmount,
     paymentDate: t.paymentDate ?? "",
     status: t.status ?? paymentStatusOf(amount, paidAmount),
@@ -68,6 +76,7 @@ function normalizeRecord(t: Partial<Transaction> & { id: string }): Transaction 
     ...(t.extra ? { extra: t.extra } : {}),
   };
 }
+
 
 export function FinanceProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
