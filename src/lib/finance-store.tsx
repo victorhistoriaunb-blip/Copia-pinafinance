@@ -10,9 +10,11 @@ import {
 import { idbGet, idbSet } from "./idb";
 import { parseFile } from "./xlsx-parse";
 import {
+  DEFAULT_DASHBOARD_LAYOUT,
   DEFAULT_SETTINGS,
   paymentStatusOf,
   type AppSettings,
+  type DashboardCardPref,
   type Goal,
   type ImportedWorkbook,
   type NewTransaction,
@@ -23,6 +25,7 @@ const FILES_KEY = "workbooks";
 const RECORDS_KEY = "records";
 const GOAL_KEY = "goal";
 const SETTINGS_KEY = "settings";
+const LAYOUT_KEY = "dashboard-layout";
 
 const DEFAULT_GOAL: Goal = { name: "Reserva de emergência", target: 30000 };
 
@@ -32,15 +35,19 @@ type Ctx = {
   transactions: Transaction[];
   goal: Goal;
   settings: AppSettings;
+  layout: DashboardCardPref[];
   importFiles: (files: File[]) => Promise<{ name: string; error?: string }[]>;
   removeFile: (id: string) => Promise<void>;
   clearAll: () => Promise<void>;
   saveGoal: (goal: Goal) => Promise<void>;
   saveSettings: (settings: AppSettings) => Promise<void>;
+  saveLayout: (layout: DashboardCardPref[]) => Promise<void>;
   addRecord: (data: NewTransaction) => Promise<Transaction>;
+  addRecords: (list: NewTransaction[]) => Promise<void>;
   updateRecord: (id: string, data: Partial<Transaction>) => Promise<void>;
   deleteRecord: (id: string) => Promise<void>;
 };
+
 
 const FinanceContext = createContext<Ctx | null>(null);
 
