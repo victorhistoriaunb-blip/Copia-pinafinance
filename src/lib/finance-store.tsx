@@ -206,6 +206,11 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     await idbSet(SETTINGS_KEY, next);
   }, []);
 
+  const saveLayout = useCallback<Ctx["saveLayout"]>(async (next) => {
+    setLayout(next);
+    await idbSet(LAYOUT_KEY, next);
+  }, []);
+
   const addRecord = useCallback<Ctx["addRecord"]>(
     async (data) => {
       const record = normalizeRecord({
@@ -216,6 +221,21 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       });
       await persistRecords([record, ...records]);
       return record;
+    },
+    [records, persistRecords],
+  );
+
+  const addRecords = useCallback<Ctx["addRecords"]>(
+    async (list) => {
+      const created = list.map((data, i) =>
+        normalizeRecord({
+          ...data,
+          id: `manual:${Date.now()}:${i}:${Math.random().toString(36).slice(2, 8)}`,
+          source: "manual",
+          status: paymentStatusOf(data.amount, data.paidAmount),
+        }),
+      );
+      await persistRecords([...created, ...records]);
     },
     [records, persistRecords],
   );
@@ -254,12 +274,15 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       transactions,
       goal,
       settings,
+      layout,
       importFiles,
       removeFile,
       clearAll,
       saveGoal,
       saveSettings,
+      saveLayout,
       addRecord,
+      addRecords,
       updateRecord,
       deleteRecord,
     }),
@@ -269,16 +292,20 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       transactions,
       goal,
       settings,
+      layout,
       importFiles,
       removeFile,
       clearAll,
       saveGoal,
       saveSettings,
+      saveLayout,
       addRecord,
+      addRecords,
       updateRecord,
       deleteRecord,
     ],
   );
+
 
   return <FinanceContext.Provider value={value}>{children}</FinanceContext.Provider>;
 }
