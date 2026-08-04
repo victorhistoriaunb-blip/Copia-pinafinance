@@ -17,17 +17,21 @@ function norm(v: unknown): string {
  * simplesmente fica vazio no registro importado.
  */
 const FIELD_SYNONYMS: Record<string, string[]> = {
-  date: ["data", "dia", "date", "competencia", "vencimento", "data lancamento", "prazo"],
-  description: ["descricao", "historico", "item", "lancamento", "nome", "detalhe", "titulo", "produto", "cliente"],
-  category: ["categoria", "classificacao", "grupo", "tipo de gasto", "segmento", "setor"],
+  date: ["data", "dia", "date", "competencia", "data lancamento", "lancamento em"],
+  dueDate: ["vencimento", "data vencimento", "vence em", "prazo", "data limite"],
+  description: ["conta", "descricao", "historico", "item", "lancamento", "nome", "detalhe", "titulo", "produto", "cliente"],
+  category: ["categoria", "classificacao", "grupo", "segmento", "setor"],
+  expenseKind: ["despesa", "tipo de despesa", "tipo de gasto", "fixa variavel", "fixo variavel"],
   type: ["tipo", "natureza", "entrada saida", "movimento", "operacao", "receita despesa"],
   amount: ["valor", "montante", "total", "preco", "quantia", "valor r", "valor total", "vlr", "valor previsto"],
-  account: ["conta", "banco", "carteira", "instituicao", "fornecedor"],
+  account: ["banco", "carteira", "instituicao", "fornecedor"],
   method: ["forma de pagamento", "pagamento", "metodo", "forma", "meio de pagamento"],
   notes: ["observacao", "observacoes", "obs", "nota", "notas", "comentario", "detalhes"],
+  details: ["detalhamento", "informacoes adicionais", "complemento"],
   status: ["status", "situacao", "pago", "quitado", "condicao"],
   paidAmount: ["valor pago", "pago valor", "valor quitado", "recebido", "valor recebido"],
   paymentDate: ["data pagamento", "data do pagamento", "pago em", "data quitacao", "data de pagamento"],
+
 };
 
 function matchField(header: string): string | null {
@@ -194,19 +198,33 @@ export function parseWorkbook(fileId: string, fileName: string, buffer: ArrayBuf
         if (label && value) extra[label] = value;
       });
 
+      const kindText = norm(text("expenseKind") || categoryText);
+      const expenseKind: Transaction["expenseKind"] = kindText.includes("fix")
+        ? "fixa"
+        : kindText.includes("variav")
+          ? "variavel"
+          : "nenhuma";
+
       transactions.push({
         id: `${fileId}:${sheetName}:${i}`,
         date,
         type,
         category: categoryText,
+        expenseKind,
         description: text("description") || categoryText || `Registro ${i + 1}`,
         account: text("account"),
         method: text("method"),
+        dueDate: parseDate(cell("dueDate")) ?? "",
         amount,
         notes: text("notes"),
+        details: text("details"),
+        history: "",
+        links: "",
+        comments: "",
         paidAmount,
         paymentDate: parseDate(cell("paymentDate")) ?? "",
         status: paymentStatusOf(amount, paidAmount),
+
         source: "planilha",
         fileId,
         fileName,

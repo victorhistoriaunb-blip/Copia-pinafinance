@@ -1,17 +1,38 @@
 export type PaymentStatus = "pago" | "pendente" | "parcial";
 
+/** Tipo de despesa (substitui a antiga "categoria" nos cards/formulários). */
+export type ExpenseKind = "fixa" | "variavel" | "nenhuma";
+
+export const EXPENSE_KIND_LABEL: Record<ExpenseKind, string> = {
+  fixa: "Fixa",
+  variavel: "Variável",
+  nenhuma: "Nenhuma",
+};
+
+export const EXPENSE_KINDS: ExpenseKind[] = ["fixa", "variavel", "nenhuma"];
+
 export type Transaction = {
   id: string;
   /** ISO yyyy-mm-dd — pode ficar vazio quando a planilha não tem data. */
   date: string;
   type: "receita" | "despesa";
   category: string;
+  /** Tipo de despesa: fixa, variável ou nenhuma. */
+  expenseKind: ExpenseKind;
+  /** Nome da conta (ex.: Água, Luz, Netflix). Mantém o campo `description`. */
   description: string;
   account: string;
   method: string;
+  /** Data limite de pagamento (yyyy-mm-dd). Diferente de `date` (lançamento). */
+  dueDate: string;
   /** Sempre positivo. Pode ser 0 quando não informado. */
   amount: number;
   notes: string;
+  /** Informações complementares (aba Detalhamento) */
+  details: string;
+  history: string;
+  links: string;
+  comments: string;
   /** Controle de pagamento */
   paidAmount: number;
   paymentDate: string;
@@ -36,6 +57,7 @@ export function paymentStatusOf(amount: number, paid: number): PaymentStatus {
   if (paid + 0.005 >= amount) return "pago";
   return "parcial";
 }
+
 
 export function remainingOf(t: Transaction) {
   return Math.max(0, Number((t.amount - t.paidAmount).toFixed(2)));
@@ -152,3 +174,27 @@ export type DashboardData = {
   recent: Transaction[];
   source: string;
 };
+
+/** Preferência de exibição de um card do dashboard personalizável. */
+export type DashboardCardPref = { id: string; visible: boolean; size: "pequeno" | "medio" | "grande" };
+
+export const DASHBOARD_CARDS: { id: string; label: string; defaultSize: DashboardCardPref["size"] }[] = [
+  { id: "kpi-saldo", label: "Saldo acumulado", defaultSize: "pequeno" },
+  { id: "kpi-receitas", label: "Receitas do mês", defaultSize: "pequeno" },
+  { id: "kpi-despesas", label: "Despesas do mês", defaultSize: "pequeno" },
+  { id: "kpi-economia", label: "Economia do mês", defaultSize: "pequeno" },
+  { id: "kpi-pendente", label: "Total pendente", defaultSize: "pequeno" },
+  { id: "kpi-pago", label: "Total pago", defaultSize: "pequeno" },
+  { id: "fluxo", label: "Receitas x Despesas", defaultSize: "grande" },
+  { id: "despesa-tipo", label: "Despesas por tipo (fixa/variável)", defaultSize: "medio" },
+  { id: "diario", label: "Gastos diários", defaultSize: "grande" },
+  { id: "vencimentos", label: "Próximos vencimentos", defaultSize: "medio" },
+  { id: "meta", label: "Meta financeira", defaultSize: "medio" },
+  { id: "insights", label: "Insights", defaultSize: "medio" },
+];
+
+export const DEFAULT_DASHBOARD_LAYOUT: DashboardCardPref[] = DASHBOARD_CARDS.map((c) => ({
+  id: c.id,
+  visible: true,
+  size: c.defaultSize,
+}));

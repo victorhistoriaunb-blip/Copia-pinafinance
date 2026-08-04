@@ -10,9 +10,11 @@ import {
 import { idbGet, idbSet } from "./idb";
 import { parseFile } from "./xlsx-parse";
 import {
+  DEFAULT_DASHBOARD_LAYOUT,
   DEFAULT_SETTINGS,
   paymentStatusOf,
   type AppSettings,
+  type DashboardCardPref,
   type Goal,
   type ImportedWorkbook,
   type NewTransaction,
@@ -23,6 +25,7 @@ const FILES_KEY = "workbooks";
 const RECORDS_KEY = "records";
 const GOAL_KEY = "goal";
 const SETTINGS_KEY = "settings";
+const LAYOUT_KEY = "dashboard-layout";
 
 const DEFAULT_GOAL: Goal = { name: "Reserva de emergência", target: 30000 };
 
@@ -32,15 +35,19 @@ type Ctx = {
   transactions: Transaction[];
   goal: Goal;
   settings: AppSettings;
+  layout: DashboardCardPref[];
   importFiles: (files: File[]) => Promise<{ name: string; error?: string }[]>;
   removeFile: (id: string) => Promise<void>;
   clearAll: () => Promise<void>;
   saveGoal: (goal: Goal) => Promise<void>;
   saveSettings: (settings: AppSettings) => Promise<void>;
+  saveLayout: (layout: DashboardCardPref[]) => Promise<void>;
   addRecord: (data: NewTransaction) => Promise<Transaction>;
+  addRecords: (list: NewTransaction[]) => Promise<void>;
   updateRecord: (id: string, data: Partial<Transaction>) => Promise<void>;
   deleteRecord: (id: string) => Promise<void>;
 };
+
 
 const FinanceContext = createContext<Ctx | null>(null);
 
@@ -48,16 +55,24 @@ const FinanceContext = createContext<Ctx | null>(null);
 function normalizeRecord(t: Partial<Transaction> & { id: string }): Transaction {
   const amount = Number(t.amount ?? 0);
   const paidAmount = Number(t.paidAmount ?? 0);
+  const kind = t.expenseKind;
   return {
     id: t.id,
     date: t.date ?? "",
     type: t.type === "receita" ? "receita" : "despesa",
     category: t.category ?? "",
+    expenseKind: kind === "fixa" || kind === "variavel" ? kind : "nenhuma",
+    
     description: t.description ?? "",
     account: t.account ?? "",
     method: t.method ?? "",
+    dueDate: t.dueDate ?? "",
     amount,
     notes: t.notes ?? "",
+    details: t.details ?? "",
+    history: t.history ?? "",
+    links: t.links ?? "",
+    comments: t.comments ?? "",
     paidAmount,
     paymentDate: t.paymentDate ?? "",
     status: t.status ?? paymentStatusOf(amount, paidAmount),
@@ -69,23 +84,27 @@ function normalizeRecord(t: Partial<Transaction> & { id: string }): Transaction 
   };
 }
 
+
 export function FinanceProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [files, setFiles] = useState<ImportedWorkbook[]>([]);
   const [records, setRecords] = useState<Transaction[]>([]);
   const [goal, setGoal] = useState<Goal>(DEFAULT_GOAL);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+  const [layout, setLayout] = useState<DashboardCardPref[]>(DEFAULT_DASHBOARD_LAYOUT);
 
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
-        const [storedFiles, storedRecords, storedGoal, storedSettings] = await Promise.all([
-          idbGet<ImportedWorkbook[]>(FILES_KEY),
-          idbGet<Transaction[]>(RECORDS_KEY),
-          idbGet<Goal>(GOAL_KEY),
-          idbGet<Partial<AppSettings>>(SETTINGS_KEY),
-        ]);
+        const [storedFiles, storedRecords, storedGoal, storedSettings, storedLayout] =
+          await Promise.all([
+            idbGet<ImportedWorkbook[]>(FILES_KEY),
+            idbGet<Transaction[]>(RECORDS_KEY),
+            idbGet<Goal>(GOAL_KEY),
+            idbGet<Partial<AppSettings>>(SETTINGS_KEY),
+            idbGet<DashboardCardPref[]>(LAYOUT_KEY),
+          ]);
         if (!alive) return;
         if (storedFiles) setFiles(storedFiles);
         if (storedRecords) {
@@ -97,12 +116,20 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
           if (migrated.length > 0) await idbSet(RECORDS_KEY, migrated);
         }
         if (storedGoal) setGoal(storedGoal);
+        if (storedLayout && storedLayout.length > 0) {
+          const known = new Map(storedLayout.map((c) => [c.id, c]));
+          setLayout([
+            ...storedLayout.filter((c) => DEFAULT_DASHBOARD_LAYOUT.some((d) => d.id === c.id)),
+            ...DEFAULT_DASHBOARD_LAYOUT.filter((d) => !known.has(d.id)),
+          ]);
+        }
         if (storedSettings)
           setSettings({
             ...DEFAULT_SETTINGS,
             ...storedSettings,
             labels: { ...DEFAULT_SETTINGS.labels, ...(storedSettings.labels ?? {}) },
           });
+
       } catch {
         /* armazenamento indisponível */
       } finally {
@@ -179,6 +206,11 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     await idbSet(SETTINGS_KEY, next);
   }, []);
 
+  const saveLayout = useCallback<Ctx["saveLayout"]>(async (next) => {
+    setLayout(next);
+    await idbSet(LAYOUT_KEY, next);
+  }, []);
+
   const addRecord = useCallback<Ctx["addRecord"]>(
     async (data) => {
       const record = normalizeRecord({
@@ -189,6 +221,21 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       });
       await persistRecords([record, ...records]);
       return record;
+    },
+    [records, persistRecords],
+  );
+
+  const addRecords = useCallback<Ctx["addRecords"]>(
+    async (list) => {
+      const created = list.map((data, i) =>
+        normalizeRecord({
+          ...data,
+          id: `manual:${Date.now()}:${i}:${Math.random().toString(36).slice(2, 8)}`,
+          source: "manual",
+          status: paymentStatusOf(data.amount, data.paidAmount),
+        }),
+      );
+      await persistRecords([...created, ...records]);
     },
     [records, persistRecords],
   );
@@ -227,12 +274,15 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       transactions,
       goal,
       settings,
+      layout,
       importFiles,
       removeFile,
       clearAll,
       saveGoal,
       saveSettings,
+      saveLayout,
       addRecord,
+      addRecords,
       updateRecord,
       deleteRecord,
     }),
@@ -242,16 +292,20 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       transactions,
       goal,
       settings,
+      layout,
       importFiles,
       removeFile,
       clearAll,
       saveGoal,
       saveSettings,
+      saveLayout,
       addRecord,
+      addRecords,
       updateRecord,
       deleteRecord,
     ],
   );
+
 
   return <FinanceContext.Provider value={value}>{children}</FinanceContext.Provider>;
 }
