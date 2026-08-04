@@ -174,3 +174,27 @@ export type DashboardData = {
   recent: Transaction[];
   source: string;
 };
+
+/** Preferência de exibição de um card do dashboard personalizável. */
+export type DashboardCardPref = { id: string; visible: boolean; size: "pequeno" | "medio" | "grande" };
+
+export const DASHBOARD_CARDS: { id: string; label: string; defaultSize: DashboardCardPref["size"] }[] = [
+  { id: "kpi-saldo", label: "Saldo acumulado", defaultSize: "pequeno" },
+  { id: "kpi-receitas", label: "Receitas do mês", defaultSize: "pequeno" },
+  { id: "kpi-despesas", label: "Despesas do mês", defaultSize: "pequeno" },
+  { id: "kpi-economia", label: "Economia do mês", defaultSize: "pequeno" },
+  { id: "kpi-pendente", label: "Total pendente", defaultSize: "pequeno" },
+  { id: "kpi-pago", label: "Total pago", defaultSize: "pequeno" },
+  { id: "fluxo", label: "Receitas x Despesas", defaultSize: "grande" },
+  { id: "despesa-tipo", label: "Despesas por tipo (fixa/variável)", defaultSize: "medio" },
+  { id: "diario", label: "Gastos diários", defaultSize: "grande" },
+  { id: "vencimentos", label: "Próximos vencimentos", defaultSize: "medio" },
+  { id: "meta", label: "Meta financeira", defaultSize: "medio" },
+  { id: "insights", label: "Insights", defaultSize: "medio" },
+];
+
+export const DEFAULT_DASHBOARD_LAYOUT: DashboardCardPref[] = DASHBOARD_CARDS.map((c) => ({
+  id: c.id,
+  visible: true,
+  size: c.defaultSize,
+}));
