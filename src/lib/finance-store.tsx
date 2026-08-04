@@ -91,17 +91,20 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
   const [records, setRecords] = useState<Transaction[]>([]);
   const [goal, setGoal] = useState<Goal>(DEFAULT_GOAL);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+  const [layout, setLayout] = useState<DashboardCardPref[]>(DEFAULT_DASHBOARD_LAYOUT);
 
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
-        const [storedFiles, storedRecords, storedGoal, storedSettings] = await Promise.all([
-          idbGet<ImportedWorkbook[]>(FILES_KEY),
-          idbGet<Transaction[]>(RECORDS_KEY),
-          idbGet<Goal>(GOAL_KEY),
-          idbGet<Partial<AppSettings>>(SETTINGS_KEY),
-        ]);
+        const [storedFiles, storedRecords, storedGoal, storedSettings, storedLayout] =
+          await Promise.all([
+            idbGet<ImportedWorkbook[]>(FILES_KEY),
+            idbGet<Transaction[]>(RECORDS_KEY),
+            idbGet<Goal>(GOAL_KEY),
+            idbGet<Partial<AppSettings>>(SETTINGS_KEY),
+            idbGet<DashboardCardPref[]>(LAYOUT_KEY),
+          ]);
         if (!alive) return;
         if (storedFiles) setFiles(storedFiles);
         if (storedRecords) {
@@ -113,12 +116,20 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
           if (migrated.length > 0) await idbSet(RECORDS_KEY, migrated);
         }
         if (storedGoal) setGoal(storedGoal);
+        if (storedLayout && storedLayout.length > 0) {
+          const known = new Map(storedLayout.map((c) => [c.id, c]));
+          setLayout([
+            ...storedLayout.filter((c) => DEFAULT_DASHBOARD_LAYOUT.some((d) => d.id === c.id)),
+            ...DEFAULT_DASHBOARD_LAYOUT.filter((d) => !known.has(d.id)),
+          ]);
+        }
         if (storedSettings)
           setSettings({
             ...DEFAULT_SETTINGS,
             ...storedSettings,
             labels: { ...DEFAULT_SETTINGS.labels, ...(storedSettings.labels ?? {}) },
           });
+
       } catch {
         /* armazenamento indisponível */
       } finally {
