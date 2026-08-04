@@ -198,19 +198,33 @@ export function parseWorkbook(fileId: string, fileName: string, buffer: ArrayBuf
         if (label && value) extra[label] = value;
       });
 
+      const kindText = norm(text("expenseKind") || categoryText);
+      const expenseKind: Transaction["expenseKind"] = kindText.includes("fix")
+        ? "fixa"
+        : kindText.includes("variav")
+          ? "variavel"
+          : "nenhuma";
+
       transactions.push({
         id: `${fileId}:${sheetName}:${i}`,
         date,
         type,
         category: categoryText,
+        expenseKind,
         description: text("description") || categoryText || `Registro ${i + 1}`,
         account: text("account"),
         method: text("method"),
+        dueDate: parseDate(cell("dueDate")) ?? "",
         amount,
         notes: text("notes"),
+        details: text("details"),
+        history: "",
+        links: "",
+        comments: "",
         paidAmount,
         paymentDate: parseDate(cell("paymentDate")) ?? "",
         status: paymentStatusOf(amount, paidAmount),
+
         source: "planilha",
         fileId,
         fileName,
