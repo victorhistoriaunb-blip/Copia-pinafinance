@@ -15,11 +15,14 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as GatedIndexRouteImport } from './routes/_gated.index'
 import { Route as GatedAnoRouteImport } from './routes/_gated.ano'
 import { Route as GatedCategoriasRouteImport } from './routes/_gated.categorias'
+import { Route as GatedComoUsarRouteImport } from './routes/_gated.como-usar'
+import { Route as GatedConfiguracoesRouteImport } from './routes/_gated.configuracoes'
 import { Route as GatedContasRouteImport } from './routes/_gated.contas'
 import { Route as GatedDiaRouteImport } from './routes/_gated.dia'
 import { Route as GatedImportarRouteImport } from './routes/_gated.importar'
 import { Route as GatedMesRouteImport } from './routes/_gated.mes'
 import { Route as GatedMetasRouteImport } from './routes/_gated.metas'
+import { Route as GatedPaineisRouteImport } from './routes/_gated.paineis'
 import { Route as GatedRelatoriosRouteImport } from './routes/_gated.relatorios'
 import { Route as GatedSemanaRouteImport } from './routes/_gated.semana'
 
@@ -52,6 +55,16 @@ const GatedCategoriasRoute = GatedCategoriasRouteImport.update({
   path: '/categorias',
   getParentRoute: () => GatedRoute,
 } as any)
+const GatedComoUsarRoute = GatedComoUsarRouteImport.update({
+  id: '/como-usar',
+  path: '/como-usar',
+  getParentRoute: () => GatedRoute,
+} as any)
+const GatedConfiguracoesRoute = GatedConfiguracoesRouteImport.update({
+  id: '/configuracoes',
+  path: '/configuracoes',
+  getParentRoute: () => GatedRoute,
+} as any)
 const GatedContasRoute = GatedContasRouteImport.update({
   id: '/contas',
   path: '/contas',
@@ -77,6 +90,11 @@ const GatedMetasRoute = GatedMetasRouteImport.update({
   path: '/metas',
   getParentRoute: () => GatedRoute,
 } as any)
+const GatedPaineisRoute = GatedPaineisRouteImport.update({
+  id: '/paineis',
+  path: '/paineis',
+  getParentRoute: () => GatedRoute,
+} as any)
 const GatedRelatoriosRoute = GatedRelatoriosRouteImport.update({
   id: '/relatorios',
   path: '/relatorios',
@@ -94,11 +112,14 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/ano': typeof GatedAnoRoute
   '/categorias': typeof GatedCategoriasRoute
+  '/como-usar': typeof GatedComoUsarRoute
+  '/configuracoes': typeof GatedConfiguracoesRoute
   '/contas': typeof GatedContasRoute
   '/dia': typeof GatedDiaRoute
   '/importar': typeof GatedImportarRoute
   '/mes': typeof GatedMesRoute
   '/metas': typeof GatedMetasRoute
+  '/paineis': typeof GatedPaineisRoute
   '/relatorios': typeof GatedRelatoriosRoute
   '/semana': typeof GatedSemanaRoute
 }
@@ -107,11 +128,14 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/ano': typeof GatedAnoRoute
   '/categorias': typeof GatedCategoriasRoute
+  '/como-usar': typeof GatedComoUsarRoute
+  '/configuracoes': typeof GatedConfiguracoesRoute
   '/contas': typeof GatedContasRoute
   '/dia': typeof GatedDiaRoute
   '/importar': typeof GatedImportarRoute
   '/mes': typeof GatedMesRoute
   '/metas': typeof GatedMetasRoute
+  '/paineis': typeof GatedPaineisRoute
   '/relatorios': typeof GatedRelatoriosRoute
   '/semana': typeof GatedSemanaRoute
   '/': typeof GatedIndexRoute
@@ -123,11 +147,14 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/_gated/ano': typeof GatedAnoRoute
   '/_gated/categorias': typeof GatedCategoriasRoute
+  '/_gated/como-usar': typeof GatedComoUsarRoute
+  '/_gated/configuracoes': typeof GatedConfiguracoesRoute
   '/_gated/contas': typeof GatedContasRoute
   '/_gated/dia': typeof GatedDiaRoute
   '/_gated/importar': typeof GatedImportarRoute
   '/_gated/mes': typeof GatedMesRoute
   '/_gated/metas': typeof GatedMetasRoute
+  '/_gated/paineis': typeof GatedPaineisRoute
   '/_gated/relatorios': typeof GatedRelatoriosRoute
   '/_gated/semana': typeof GatedSemanaRoute
   '/_gated/': typeof GatedIndexRoute
@@ -140,11 +167,14 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/ano'
     | '/categorias'
+    | '/como-usar'
+    | '/configuracoes'
     | '/contas'
     | '/dia'
     | '/importar'
     | '/mes'
     | '/metas'
+    | '/paineis'
     | '/relatorios'
     | '/semana'
   fileRoutesByTo: FileRoutesByTo
@@ -153,11 +183,14 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/ano'
     | '/categorias'
+    | '/como-usar'
+    | '/configuracoes'
     | '/contas'
     | '/dia'
     | '/importar'
     | '/mes'
     | '/metas'
+    | '/paineis'
     | '/relatorios'
     | '/semana'
     | '/'
@@ -168,11 +201,14 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/_gated/ano'
     | '/_gated/categorias'
+    | '/_gated/como-usar'
+    | '/_gated/configuracoes'
     | '/_gated/contas'
     | '/_gated/dia'
     | '/_gated/importar'
     | '/_gated/mes'
     | '/_gated/metas'
+    | '/_gated/paineis'
     | '/_gated/relatorios'
     | '/_gated/semana'
     | '/_gated/'
@@ -228,6 +264,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GatedCategoriasRouteImport
       parentRoute: typeof GatedRoute
     }
+    '/_gated/como-usar': {
+      id: '/_gated/como-usar'
+      path: '/como-usar'
+      fullPath: '/como-usar'
+      preLoaderRoute: typeof GatedComoUsarRouteImport
+      parentRoute: typeof GatedRoute
+    }
+    '/_gated/configuracoes': {
+      id: '/_gated/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/configuracoes'
+      preLoaderRoute: typeof GatedConfiguracoesRouteImport
+      parentRoute: typeof GatedRoute
+    }
     '/_gated/contas': {
       id: '/_gated/contas'
       path: '/contas'
@@ -263,6 +313,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GatedMetasRouteImport
       parentRoute: typeof GatedRoute
     }
+    '/_gated/paineis': {
+      id: '/_gated/paineis'
+      path: '/paineis'
+      fullPath: '/paineis'
+      preLoaderRoute: typeof GatedPaineisRouteImport
+      parentRoute: typeof GatedRoute
+    }
     '/_gated/relatorios': {
       id: '/_gated/relatorios'
       path: '/relatorios'
@@ -283,11 +340,14 @@ declare module '@tanstack/react-router' {
 interface GatedRouteChildren {
   GatedAnoRoute: typeof GatedAnoRoute
   GatedCategoriasRoute: typeof GatedCategoriasRoute
+  GatedComoUsarRoute: typeof GatedComoUsarRoute
+  GatedConfiguracoesRoute: typeof GatedConfiguracoesRoute
   GatedContasRoute: typeof GatedContasRoute
   GatedDiaRoute: typeof GatedDiaRoute
   GatedImportarRoute: typeof GatedImportarRoute
   GatedMesRoute: typeof GatedMesRoute
   GatedMetasRoute: typeof GatedMetasRoute
+  GatedPaineisRoute: typeof GatedPaineisRoute
   GatedRelatoriosRoute: typeof GatedRelatoriosRoute
   GatedSemanaRoute: typeof GatedSemanaRoute
   GatedIndexRoute: typeof GatedIndexRoute
@@ -296,11 +356,14 @@ interface GatedRouteChildren {
 const GatedRouteChildren: GatedRouteChildren = {
   GatedAnoRoute: GatedAnoRoute,
   GatedCategoriasRoute: GatedCategoriasRoute,
+  GatedComoUsarRoute: GatedComoUsarRoute,
+  GatedConfiguracoesRoute: GatedConfiguracoesRoute,
   GatedContasRoute: GatedContasRoute,
   GatedDiaRoute: GatedDiaRoute,
   GatedImportarRoute: GatedImportarRoute,
   GatedMesRoute: GatedMesRoute,
   GatedMetasRoute: GatedMetasRoute,
+  GatedPaineisRoute: GatedPaineisRoute,
   GatedRelatoriosRoute: GatedRelatoriosRoute,
   GatedSemanaRoute: GatedSemanaRoute,
   GatedIndexRoute: GatedIndexRoute,

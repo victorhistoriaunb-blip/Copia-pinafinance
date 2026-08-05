@@ -3,7 +3,6 @@ import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { motion } from "motion/react";
 import { Loader2, Lock, Mail, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
 import logo from "@/assets/logo.png";
 
 export const Route = createFileRoute("/login")({
@@ -25,8 +24,12 @@ export const Route = createFileRoute("/login")({
       { name: "robots", content: "noindex" },
     ],
   }),
+  // A tela usa efeitos de vidro/animação que dependem do navegador — evita
+  // divergência entre o HTML do servidor e o do cliente.
+  ssr: false,
   component: LoginPage,
 });
+
 
 type Mode = "entrar" | "criar" | "recuperar";
 
@@ -115,25 +118,8 @@ function LoginPage() {
     }
   }
 
-  async function onGoogle() {
-    setError(null);
-    setPending(true);
-    try {
-      const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin,
-      });
-      if (result.error) {
-        setError("Não foi possível entrar com o Google.");
-        return;
-      }
-      if (result.redirected) return;
-      await router.navigate({ to: "/" });
-    } catch {
-      setError("Não foi possível entrar com o Google.");
-    } finally {
-      setPending(false);
-    }
-  }
+
+
 
   return (
     <div className="grid-noise relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-12">
@@ -146,8 +132,8 @@ function LoginPage() {
       />
 
       <motion.div
-        initial={{ opacity: 0, y: 24, filter: "blur(6px)" }}
-        animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
         className="panel relative w-full max-w-sm p-8"
       >
@@ -262,25 +248,8 @@ function LoginPage() {
             {mode === "entrar" ? "Entrar" : mode === "criar" ? "Criar conta" : "Enviar link"}
           </button>
         </form>
-
-        {mode !== "recuperar" && (
-          <>
-            <div className="my-5 flex items-center gap-3 text-[11px] text-muted-foreground">
-              <span className="h-px flex-1 bg-border" />
-              ou
-              <span className="h-px flex-1 bg-border" />
-            </div>
-            <button
-              type="button"
-              onClick={onGoogle}
-              disabled={pending}
-              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-border bg-card text-sm font-semibold text-foreground transition-colors hover:border-primary/50 disabled:opacity-70"
-            >
-              Continuar com Google
-            </button>
-          </>
-        )}
       </motion.div>
+
     </div>
   );
 }

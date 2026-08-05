@@ -14,6 +14,156 @@ export type Database = {
   }
   public: {
     Tables: {
+      finance_files: {
+        Row: {
+          created_at: string
+          id: string
+          imported_at: string
+          issues: Json
+          name: string
+          sheets: Json
+          size: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          imported_at?: string
+          issues?: Json
+          name?: string
+          sheets?: Json
+          size?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          imported_at?: string
+          issues?: Json
+          name?: string
+          sheets?: Json
+          size?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      finance_prefs: {
+        Row: {
+          created_at: string
+          goal: Json | null
+          layout: Json | null
+          settings: Json | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          goal?: Json | null
+          layout?: Json | null
+          settings?: Json | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          goal?: Json | null
+          layout?: Json | null
+          settings?: Json | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      finance_records: {
+        Row: {
+          account: string
+          amount: number
+          category: string
+          comments: string
+          created_at: string
+          date: string
+          description: string
+          details: string
+          due_date: string
+          expense_kind: string
+          extra: Json | null
+          file_id: string
+          file_name: string
+          history: string
+          id: string
+          links: string
+          method: string
+          notes: string
+          paid_amount: number
+          payment_date: string
+          sheet: string
+          source: string
+          status: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account?: string
+          amount?: number
+          category?: string
+          comments?: string
+          created_at?: string
+          date?: string
+          description?: string
+          details?: string
+          due_date?: string
+          expense_kind?: string
+          extra?: Json | null
+          file_id?: string
+          file_name?: string
+          history?: string
+          id: string
+          links?: string
+          method?: string
+          notes?: string
+          paid_amount?: number
+          payment_date?: string
+          sheet?: string
+          source?: string
+          status?: string
+          type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account?: string
+          amount?: number
+          category?: string
+          comments?: string
+          created_at?: string
+          date?: string
+          description?: string
+          details?: string
+          due_date?: string
+          expense_kind?: string
+          extra?: Json | null
+          file_id?: string
+          file_name?: string
+          history?: string
+          id?: string
+          links?: string
+          method?: string
+          notes?: string
+          paid_amount?: number
+          payment_date?: string
+          sheet?: string
+          source?: string
+          status?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
