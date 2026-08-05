@@ -1,0 +1,212 @@
+import { supabase } from "@/integrations/supabase/client";
+import type { ImportedWorkbook, ImportIssue, SheetSummary, Transaction } from "./finance.types";
+
+/** Conversão entre o formato do app e as colunas da tabela na nuvem. */
+export type RecordRow = {
+  user_id: string;
+  id: string;
+  date: string;
+  type: string;
+  category: string;
+  expense_kind: string;
+  description: string;
+  account: string;
+  method: string;
+  due_date: string;
+  amount: number;
+  notes: string;
+  details: string;
+  history: string;
+  links: string;
+  comments: string;
+  paid_amount: number;
+  payment_date: string;
+  status: string;
+  source: string;
+  file_id: string;
+  file_name: string;
+  sheet: string;
+  extra: Record<string, string> | null;
+};
+
+export function toRow(userId: string, t: Transaction): RecordRow {
+  return {
+    user_id: userId,
+    id: t.id,
+    date: t.date,
+    type: t.type,
+    category: t.category,
+    expense_kind: t.expenseKind,
+    description: t.description,
+    account: t.account,
+    method: t.method,
+    due_date: t.dueDate,
+    amount: t.amount,
+    notes: t.notes,
+    details: t.details,
+    history: t.history,
+    links: t.links,
+    comments: t.comments,
+    paid_amount: t.paidAmount,
+    payment_date: t.paymentDate,
+    status: t.status,
+    source: t.source,
+    file_id: t.fileId,
+    file_name: t.fileName,
+    sheet: t.sheet,
+    extra: t.extra ?? null,
+  };
+}
+
+export function fromRow(r: Record<string, unknown>): Transaction {
+  const s = (k: string) => String(r[k] ?? "");
+  const n = (k: string) => Number(r[k] ?? 0);
+  return {
+    id: s("id"),
+    date: s("date"),
+    type: r["type"] === "receita" ? "receita" : "despesa",
+    category: s("category"),
+    expenseKind:
+      r["expense_kind"] === "fixa" || r["expense_kind"] === "variavel"
+        ? (r["expense_kind"] as "fixa" | "variavel")
+        : "nenhuma",
+    description: s("description"),
+    account: s("account"),
+    method: s("method"),
+    dueDate: s("due_date"),
+    amount: n("amount"),
+    notes: s("notes"),
+    details: s("details"),
+    history: s("history"),
+    links: s("links"),
+    comments: s("comments"),
+    paidAmount: n("paid_amount"),
+    paymentDate: s("payment_date"),
+    status: (["pago", "pendente", "parcial"] as const).includes(r["status"] as never)
+      ? (r["status"] as Transaction["status"])
+      : "pendente",
+    source: r["source"] === "planilha" ? "planilha" : "manual",
+    fileId: s("file_id"),
+    fileName: s("file_name"),
+    sheet: s("sheet"),
+    ...(r["extra"] && typeof r["extra"] === "object"
+      ? { extra: r["extra"] as Record<string, string> }
+      : {}),
+  };
+}
+
+export type WorkbookMeta = Omit<ImportedWorkbook, "transactions">;
+
+export function fileToRow(userId: string, f: WorkbookMeta) {
+  return {
+    user_id: userId,
+    id: f.id,
+    name: f.name,
+    size: f.size,
+    imported_at: f.importedAt,
+    sheets: f.sheets as unknown as never,
+    issues: f.issues as unknown as never,
+  };
+}
+
+export function fileFromRow(r: Record<string, unknown>): WorkbookMeta {
+  return {
+    id: String(r["id"] ?? ""),
+    name: String(r["name"] ?? ""),
+    size: Number(r["size"] ?? 0),
+    importedAt: String(r["imported_at"] ?? ""),
+    sheets: (Array.isArray(r["sheets"]) ? r["sheets"] : []) as SheetSummary[],
+    issues: (Array.isArray(r["issues"]) ? r["issues"] : []) as ImportIssue[],
+  };
+}
+
+const CHUNK = 400;
+
+export async function upsertRecords(userId: string, list: Transaction[]) {
+  for (let i = 0; i < list.length; i += CHUNK) {
+    const rows = list.slice(i, i + CHUNK).map((t) => toRow(userId, t));
+    const { error } = await supabase.from("finance_records").upsert(rows as never);
+    if (error) throw error;
+  }
+}
+
+export async function deleteRecords(userId: string, ids: string[]) {
+  for (let i = 0; i < ids.length; i += CHUNK) {
+    const { error } = await supabase
+      .from("finance_records")
+      .delete()
+      .eq("user_id", userId)
+      .in("id", ids.slice(i, i + CHUNK));
+    if (error) throw error;
+  }
+}
+
+export async function deleteRecordsByFile(userId: string, fileId: string) {
+  const { error } = await supabase
+    .from("finance_records")
+    .delete()
+    .eq("user_id", userId)
+    .eq("file_id", fileId);
+  if (error) throw error;
+}
+
+export async function fetchAllRecords(userId: string): Promise<Transaction[]> {
+  const all: Transaction[] = [];
+  const page = 1000;
+  for (let from = 0; ; from += page) {
+    const { data, error } = await supabase
+      .from("finance_records")
+      .select("*")
+      .eq("user_id", userId)
+      .range(from, from + page - 1);
+    if (error) throw error;
+    const rows = (data ?? []) as unknown as Record<string, unknown>[];
+    all.push(...rows.map(fromRow));
+    if (rows.length < page) break;
+  }
+  return all;
+}
+
+export async function fetchFiles(userId: string): Promise<WorkbookMeta[]> {
+  const { data, error } = await supabase
+    .from("finance_files")
+    .select("*")
+    .eq("user_id", userId)
+    .order("imported_at", { ascending: false });
+  if (error) throw error;
+  return ((data ?? []) as unknown as Record<string, unknown>[]).map(fileFromRow);
+}
+
+export async function upsertFile(userId: string, f: WorkbookMeta) {
+  const { error } = await supabase.from("finance_files").upsert(fileToRow(userId, f) as never);
+  if (error) throw error;
+}
+
+export async function deleteFile(userId: string, id: string) {
+  const { error } = await supabase
+    .from("finance_files")
+    .delete()
+    .eq("user_id", userId)
+    .eq("id", id);
+  if (error) throw error;
+}
+
+export async function fetchPrefs(userId: string) {
+  const { data, error } = await supabase
+    .from("finance_prefs")
+    .select("goal, settings, layout")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  return (data ?? null) as { goal: unknown; settings: unknown; layout: unknown } | null;
+}
+
+export async function savePrefs(
+  userId: string,
+  patch: { goal?: unknown; settings?: unknown; layout?: unknown },
+) {
+  const { error } = await supabase
+    .from("finance_prefs")
+    .upsert({ user_id: userId, ...patch } as never);
+  if (error) throw error;
+}

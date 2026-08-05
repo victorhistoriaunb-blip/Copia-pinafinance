@@ -44,31 +44,44 @@ function ImportPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<File[]>([]);
   const [results, setResults] = useState<{ name: string; error?: string }[]>([]);
 
-  async function handle(list: FileList | null) {
+  /** Só prepara a fila — a gravação acontece no "Confirmar importação". */
+  function stage(list: FileList | null) {
     if (!list || list.length === 0) return;
+    setResults([]);
+    setPending((prev) => {
+      const map = new Map(prev.map((f) => [f.name, f]));
+      for (const f of Array.from(list)) map.set(f.name, f);
+      return Array.from(map.values());
+    });
+    if (inputRef.current) inputRef.current.value = "";
+  }
+
+  async function confirmImport() {
+    if (pending.length === 0) return;
     setBusy(true);
     setResults([]);
     try {
-      const res = await importFiles(Array.from(list));
+      const res = await importFiles(pending);
       setResults(res);
+      setPending([]);
     } finally {
       setBusy(false);
-      if (inputRef.current) inputRef.current.value = "";
     }
   }
 
   return (
     <Page
       title="Importar Planilhas"
-      subtitle="Os arquivos ficam salvos neste navegador até você removê-los"
+      subtitle="Os arquivos ficam salvos na sua conta e voltam em qualquer dispositivo"
       requireData={false}
       actions={
         files.length > 0 ? (
           <button
             type="button"
-            onClick={() => clearAll()}
+            onClick={() => void clearAll()}
             className="rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground transition-colors hover:border-destructive/50 hover:text-destructive"
           >
             Remover todas
@@ -89,7 +102,7 @@ function ImportPage() {
           onDrop={(e) => {
             e.preventDefault();
             setDragging(false);
-            void handle(e.dataTransfer.files);
+            stage(e.dataTransfer.files);
           }}
           onClick={() => inputRef.current?.click()}
           className={`panel grid cursor-pointer place-items-center border-dashed p-10 text-center transition-colors duration-200 ${
@@ -102,7 +115,7 @@ function ImportPage() {
             accept=".xlsx,.xls,.xlsm,.csv"
             multiple
             className="hidden"
-            onChange={(e) => void handle(e.target.files)}
+            onChange={(e) => stage(e.target.files)}
           />
           <span className="grid size-14 place-items-center rounded-2xl bg-primary/12 text-primary">
             {busy ? <Loader2 className="size-6 animate-spin" /> : <UploadCloud className="size-6" />}
@@ -114,6 +127,56 @@ function ImportPage() {
             Formatos aceitos: .xlsx e .xls · múltiplos arquivos · todas as abas são lidas automaticamente
           </p>
         </motion.div>
+
+        {pending.length > 0 && (
+          <Panel
+            title="Arquivos selecionados"
+            description="Revise antes de gravar os lançamentos na sua conta"
+          >
+            <ul className="flex flex-col gap-2">
+              {pending.map((f) => (
+                <li
+                  key={f.name}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/70 px-3 py-2 text-sm"
+                >
+                  <span className="flex min-w-0 items-center gap-2">
+                    <FileSpreadsheet className="size-4 shrink-0 text-primary" />
+                    <span className="truncate text-foreground">{f.name}</span>
+                    <span className="shrink-0 text-xs text-muted-foreground">{fmtSize(f.size)}</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setPending((prev) => prev.filter((x) => x.name !== f.name))}
+                    aria-label={`Remover ${f.name} da fila`}
+                    className="grid size-8 place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:border-destructive/50 hover:text-destructive"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void confirmImport()}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[image:var(--gradient-primary)] px-5 text-sm font-semibold text-primary-foreground transition-all hover:brightness-110 disabled:opacity-60"
+              >
+                {busy ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
+                Confirmar importação
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => setPending([])}
+                className="inline-flex h-11 items-center rounded-xl border border-border px-5 text-sm font-semibold text-foreground transition-colors hover:border-destructive/50 hover:text-destructive"
+              >
+                Cancelar
+              </button>
+            </div>
+          </Panel>
+        )}
+
 
         {results.length > 0 && (
           <div className="flex flex-col gap-2">

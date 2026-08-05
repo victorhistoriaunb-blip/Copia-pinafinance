@@ -4,11 +4,25 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
 import { idbGet, idbSet } from "./idb";
 import { parseFile } from "./xlsx-parse";
+import { useAuth } from "./auth-context";
+import {
+  deleteFile,
+  deleteRecords,
+  deleteRecordsByFile,
+  fetchAllRecords,
+  fetchFiles,
+  fetchPrefs,
+  savePrefs,
+  upsertFile,
+  upsertRecords,
+  type WorkbookMeta,
+} from "./finance-cloud";
 import {
   DEFAULT_DASHBOARD_LAYOUT,
   DEFAULT_SETTINGS,
@@ -26,11 +40,14 @@ const RECORDS_KEY = "records";
 const GOAL_KEY = "goal";
 const SETTINGS_KEY = "settings";
 const LAYOUT_KEY = "dashboard-layout";
+const MIGRATED_KEY = "migrated-to-cloud";
 
 const DEFAULT_GOAL: Goal = { name: "Reserva de emergência", target: 30000 };
 
 type Ctx = {
   ready: boolean;
+  syncing: boolean;
+  error: string | null;
   files: ImportedWorkbook[];
   transactions: Transaction[];
   goal: Goal;
@@ -48,7 +65,6 @@ type Ctx = {
   deleteRecord: (id: string) => Promise<void>;
 };
 
-
 const FinanceContext = createContext<Ctx | null>(null);
 
 /** Garante que registros antigos (versões anteriores) ganhem os novos campos. */
@@ -62,7 +78,6 @@ function normalizeRecord(t: Partial<Transaction> & { id: string }): Transaction 
     type: t.type === "receita" ? "receita" : "despesa",
     category: t.category ?? "",
     expenseKind: kind === "fixa" || kind === "variavel" ? kind : "nenhuma",
-    
     description: t.description ?? "",
     account: t.account ?? "",
     method: t.method ?? "",
@@ -84,54 +99,111 @@ function normalizeRecord(t: Partial<Transaction> & { id: string }): Transaction 
   };
 }
 
+const newId = (prefix: string, i = 0) =>
+  `${prefix}:${Date.now()}:${i}:${Math.random().toString(36).slice(2, 8)}`;
 
 export function FinanceProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  const userId = user?.id ?? "";
   const [ready, setReady] = useState(false);
-  const [files, setFiles] = useState<ImportedWorkbook[]>([]);
+  const [syncing, setSyncing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [fileMetas, setFileMetas] = useState<WorkbookMeta[]>([]);
   const [records, setRecords] = useState<Transaction[]>([]);
   const [goal, setGoal] = useState<Goal>(DEFAULT_GOAL);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [layout, setLayout] = useState<DashboardCardPref[]>(DEFAULT_DASHBOARD_LAYOUT);
+  const recordsRef = useRef<Transaction[]>([]);
+  recordsRef.current = records;
 
+  /** Roda uma escrita na nuvem sinalizando estado e capturando falhas. */
+  const run = useCallback(async (fn: () => Promise<void>) => {
+    setSyncing(true);
+    setError(null);
+    try {
+      await fn();
+    } catch {
+      setError("Não foi possível salvar na nuvem. Verifique sua conexão e tente novamente.");
+    } finally {
+      setSyncing(false);
+    }
+  }, []);
+
+  // Carrega os dados da conta e migra o que existia só neste navegador.
   useEffect(() => {
+    if (!userId) return;
     let alive = true;
+    setReady(false);
     (async () => {
       try {
-        const [storedFiles, storedRecords, storedGoal, storedSettings, storedLayout] =
-          await Promise.all([
-            idbGet<ImportedWorkbook[]>(FILES_KEY),
-            idbGet<Transaction[]>(RECORDS_KEY),
-            idbGet<Goal>(GOAL_KEY),
-            idbGet<Partial<AppSettings>>(SETTINGS_KEY),
-            idbGet<DashboardCardPref[]>(LAYOUT_KEY),
-          ]);
+        const [cloudRecords, cloudFiles, prefs] = await Promise.all([
+          fetchAllRecords(userId),
+          fetchFiles(userId),
+          fetchPrefs(userId),
+        ]);
         if (!alive) return;
-        if (storedFiles) setFiles(storedFiles);
-        if (storedRecords) {
-          setRecords(storedRecords.map(normalizeRecord));
-        } else if (storedFiles) {
-          // Migração das versões anteriores: registros vinham dentro dos arquivos.
-          const migrated = storedFiles.flatMap((f) => f.transactions.map(normalizeRecord));
-          setRecords(migrated);
-          if (migrated.length > 0) await idbSet(RECORDS_KEY, migrated);
+
+        let finalRecords = cloudRecords.map(normalizeRecord);
+        let finalFiles = cloudFiles;
+        let finalGoal = (prefs?.goal as Goal | null) ?? DEFAULT_GOAL;
+        let finalSettings = prefs?.settings as Partial<AppSettings> | null;
+        let finalLayout = (prefs?.layout as DashboardCardPref[] | null) ?? null;
+
+        // Migração única do armazenamento local para a conta.
+        const migrated = await idbGet<boolean>(MIGRATED_KEY).catch(() => undefined);
+        if (!migrated && finalRecords.length === 0) {
+          const [localRecords, localFiles, localGoal, localSettings, localLayout] =
+            await Promise.all([
+              idbGet<Transaction[]>(RECORDS_KEY).catch(() => undefined),
+              idbGet<ImportedWorkbook[]>(FILES_KEY).catch(() => undefined),
+              idbGet<Goal>(GOAL_KEY).catch(() => undefined),
+              idbGet<Partial<AppSettings>>(SETTINGS_KEY).catch(() => undefined),
+              idbGet<DashboardCardPref[]>(LAYOUT_KEY).catch(() => undefined),
+            ]);
+          const legacy = (
+            localRecords ?? localFiles?.flatMap((f) => f.transactions) ?? []
+          ).map(normalizeRecord);
+          if (legacy.length > 0) {
+            await upsertRecords(userId, legacy);
+            finalRecords = legacy;
+          }
+          if (localFiles && localFiles.length > 0) {
+            const metas = localFiles.map(({ transactions: _drop, ...meta }) => meta);
+            for (const meta of metas) await upsertFile(userId, meta);
+            finalFiles = metas;
+          }
+          if (localGoal || localSettings || localLayout) {
+            await savePrefs(userId, {
+              ...(localGoal ? { goal: localGoal } : {}),
+              ...(localSettings ? { settings: localSettings } : {}),
+              ...(localLayout ? { layout: localLayout } : {}),
+            });
+            if (localGoal) finalGoal = localGoal;
+            if (localSettings) finalSettings = localSettings;
+            if (localLayout) finalLayout = localLayout;
+          }
+          await idbSet(MIGRATED_KEY, true).catch(() => undefined);
         }
-        if (storedGoal) setGoal(storedGoal);
-        if (storedLayout && storedLayout.length > 0) {
-          const known = new Map(storedLayout.map((c) => [c.id, c]));
+
+        if (!alive) return;
+        setRecords(finalRecords);
+        setFileMetas(finalFiles);
+        setGoal(finalGoal);
+        if (finalSettings)
+          setSettings({
+            ...DEFAULT_SETTINGS,
+            ...finalSettings,
+            labels: { ...DEFAULT_SETTINGS.labels, ...(finalSettings.labels ?? {}) },
+          });
+        if (finalLayout && finalLayout.length > 0) {
+          const known = new Map(finalLayout.map((c) => [c.id, c]));
           setLayout([
-            ...storedLayout.filter((c) => DEFAULT_DASHBOARD_LAYOUT.some((d) => d.id === c.id)),
+            ...finalLayout.filter((c) => DEFAULT_DASHBOARD_LAYOUT.some((d) => d.id === c.id)),
             ...DEFAULT_DASHBOARD_LAYOUT.filter((d) => !known.has(d.id)),
           ]);
         }
-        if (storedSettings)
-          setSettings({
-            ...DEFAULT_SETTINGS,
-            ...storedSettings,
-            labels: { ...DEFAULT_SETTINGS.labels, ...(storedSettings.labels ?? {}) },
-          });
-
       } catch {
-        /* armazenamento indisponível */
+        if (alive) setError("Não foi possível carregar seus dados agora. Tente atualizar a página.");
       } finally {
         if (alive) setReady(true);
       }
@@ -139,23 +211,16 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     return () => {
       alive = false;
     };
-  }, []);
-
-  const persistRecords = useCallback(async (next: Transaction[]) => {
-    setRecords(next);
-    await idbSet(RECORDS_KEY, next);
-  }, []);
-
-  const persistFiles = useCallback(async (next: ImportedWorkbook[]) => {
-    setFiles(next);
-    await idbSet(FILES_KEY, next);
-  }, []);
+  }, [userId]);
 
   const importFiles = useCallback<Ctx["importFiles"]>(
     async (incoming) => {
       const results: { name: string; error?: string }[] = [];
-      let nextFiles = [...files];
-      let nextRecords = [...records];
+      if (!userId) return incoming.map((f) => ({ name: f.name, error: "Sessão expirada." }));
+      setSyncing(true);
+      setError(null);
+      let nextFiles = [...fileMetas];
+      let nextRecords = [...recordsRef.current];
       for (const file of incoming) {
         if (!/\.(xlsx|xls|xlsm|csv)$/i.test(file.name)) {
           results.push({ name: file.name, error: "Formato não suportado. Use .xlsx ou .xls." });
@@ -163,66 +228,89 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         }
         try {
           const workbook = await parseFile(file);
-          nextFiles = [workbook, ...nextFiles.filter((f) => f.id !== workbook.id)];
-          nextRecords = [
-            ...workbook.transactions,
-            ...nextRecords.filter((r) => r.fileId !== workbook.id),
-          ];
+          const { transactions: rows, ...meta } = workbook;
+          await deleteRecordsByFile(userId, meta.id);
+          await upsertFile(userId, meta);
+          await upsertRecords(userId, rows);
+          nextFiles = [meta, ...nextFiles.filter((f) => f.id !== meta.id)];
+          nextRecords = [...rows, ...nextRecords.filter((r) => r.fileId !== meta.id)];
           results.push({ name: file.name });
         } catch {
           results.push({
             name: file.name,
-            error: "Não foi possível ler o arquivo. Ele pode estar corrompido ou protegido.",
+            error: "Não foi possível ler ou salvar o arquivo. Ele pode estar corrompido ou protegido.",
           });
         }
       }
-      await persistFiles(nextFiles);
-      await persistRecords(nextRecords);
+      setFileMetas(nextFiles);
+      setRecords(nextRecords);
+      setSyncing(false);
       return results;
     },
-    [files, records, persistFiles, persistRecords],
+    [userId, fileMetas],
   );
 
   const removeFile = useCallback(
     async (id: string) => {
-      await persistFiles(files.filter((f) => f.id !== id));
-      await persistRecords(records.filter((r) => r.fileId !== id));
+      setFileMetas((prev) => prev.filter((f) => f.id !== id));
+      setRecords((prev) => prev.filter((r) => r.fileId !== id));
+      await run(async () => {
+        await deleteRecordsByFile(userId, id);
+        await deleteFile(userId, id);
+      });
     },
-    [files, records, persistFiles, persistRecords],
+    [userId, run],
   );
 
   const clearAll = useCallback(async () => {
-    await persistFiles([]);
-    await persistRecords(records.filter((r) => r.source === "manual"));
-  }, [records, persistFiles, persistRecords]);
+    const ids = fileMetas.map((f) => f.id);
+    setFileMetas([]);
+    setRecords((prev) => prev.filter((r) => r.source === "manual"));
+    await run(async () => {
+      for (const id of ids) {
+        await deleteRecordsByFile(userId, id);
+        await deleteFile(userId, id);
+      }
+    });
+  }, [fileMetas, userId, run]);
 
-  const saveGoal = useCallback(async (next: Goal) => {
-    setGoal(next);
-    await idbSet(GOAL_KEY, next);
-  }, []);
+  const saveGoal = useCallback<Ctx["saveGoal"]>(
+    async (next) => {
+      setGoal(next);
+      await run(() => savePrefs(userId, { goal: next }));
+    },
+    [userId, run],
+  );
 
-  const saveSettings = useCallback(async (next: AppSettings) => {
-    setSettings(next);
-    await idbSet(SETTINGS_KEY, next);
-  }, []);
+  const saveSettings = useCallback<Ctx["saveSettings"]>(
+    async (next) => {
+      setSettings(next);
+      await run(() => savePrefs(userId, { settings: next }));
+    },
+    [userId, run],
+  );
 
-  const saveLayout = useCallback<Ctx["saveLayout"]>(async (next) => {
-    setLayout(next);
-    await idbSet(LAYOUT_KEY, next);
-  }, []);
+  const saveLayout = useCallback<Ctx["saveLayout"]>(
+    async (next) => {
+      setLayout(next);
+      await run(() => savePrefs(userId, { layout: next }));
+    },
+    [userId, run],
+  );
 
   const addRecord = useCallback<Ctx["addRecord"]>(
     async (data) => {
       const record = normalizeRecord({
         ...data,
-        id: `manual:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`,
+        id: newId("manual"),
         source: "manual",
         status: paymentStatusOf(data.amount, data.paidAmount),
       });
-      await persistRecords([record, ...records]);
+      setRecords((prev) => [record, ...prev]);
+      await run(() => upsertRecords(userId, [record]));
       return record;
     },
-    [records, persistRecords],
+    [userId, run],
   );
 
   const addRecords = useCallback<Ctx["addRecords"]>(
@@ -230,36 +318,39 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       const created = list.map((data, i) =>
         normalizeRecord({
           ...data,
-          id: `manual:${Date.now()}:${i}:${Math.random().toString(36).slice(2, 8)}`,
+          id: newId("manual", i),
           source: "manual",
           status: paymentStatusOf(data.amount, data.paidAmount),
         }),
       );
-      await persistRecords([...created, ...records]);
+      if (created.length === 0) return;
+      setRecords((prev) => [...created, ...prev]);
+      await run(() => upsertRecords(userId, created));
     },
-    [records, persistRecords],
+    [userId, run],
   );
 
   const updateRecord = useCallback<Ctx["updateRecord"]>(
     async (id, data) => {
-      const next = records.map((r) => {
-        if (r.id !== id) return r;
-        const merged = { ...r, ...data };
-        return normalizeRecord({
-          ...merged,
-          status: paymentStatusOf(merged.amount, merged.paidAmount),
-        });
+      const current = recordsRef.current.find((r) => r.id === id);
+      if (!current) return;
+      const merged = { ...current, ...data };
+      const next = normalizeRecord({
+        ...merged,
+        status: paymentStatusOf(merged.amount, merged.paidAmount),
       });
-      await persistRecords(next);
+      setRecords((prev) => prev.map((r) => (r.id === id ? next : r)));
+      await run(() => upsertRecords(userId, [next]));
     },
-    [records, persistRecords],
+    [userId, run],
   );
 
   const deleteRecord = useCallback<Ctx["deleteRecord"]>(
     async (id) => {
-      await persistRecords(records.filter((r) => r.id !== id));
+      setRecords((prev) => prev.filter((r) => r.id !== id));
+      await run(() => deleteRecords(userId, [id]));
     },
-    [records, persistRecords],
+    [userId, run],
   );
 
   const transactions = useMemo(
@@ -267,9 +358,20 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     [records],
   );
 
+  const files = useMemo<ImportedWorkbook[]>(
+    () =>
+      fileMetas.map((meta) => ({
+        ...meta,
+        transactions: records.filter((r) => r.fileId === meta.id),
+      })),
+    [fileMetas, records],
+  );
+
   const value = useMemo(
     () => ({
       ready,
+      syncing,
+      error,
       files,
       transactions,
       goal,
@@ -288,6 +390,8 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     }),
     [
       ready,
+      syncing,
+      error,
       files,
       transactions,
       goal,
@@ -305,7 +409,6 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       deleteRecord,
     ],
   );
-
 
   return <FinanceContext.Provider value={value}>{children}</FinanceContext.Provider>;
 }
