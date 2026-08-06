@@ -50,6 +50,8 @@ type Ctx = {
   error: string | null;
   files: ImportedWorkbook[];
   transactions: Transaction[];
+  /** Registros na lixeira (excluídos, mas recuperáveis). */
+  deletedRecords: Transaction[];
   goal: Goal;
   settings: AppSettings;
   layout: DashboardCardPref[];
@@ -63,6 +65,9 @@ type Ctx = {
   addRecords: (list: NewTransaction[]) => Promise<void>;
   updateRecord: (id: string, data: Partial<Transaction>) => Promise<void>;
   deleteRecord: (id: string) => Promise<void>;
+  restoreRecord: (id: string) => Promise<void>;
+  purgeRecord: (id: string) => Promise<void>;
+  purgeAllDeleted: () => Promise<void>;
 };
 
 const FinanceContext = createContext<Ctx | null>(null);
@@ -96,6 +101,7 @@ function normalizeRecord(t: Partial<Transaction> & { id: string }): Transaction 
     fileName: t.fileName ?? "",
     sheet: t.sheet ?? "",
     ...(t.extra ? { extra: t.extra } : {}),
+    ...(t.deletedAt ? { deletedAt: t.deletedAt } : {}),
   };
 }
 
@@ -235,10 +241,13 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
           nextFiles = [meta, ...nextFiles.filter((f) => f.id !== meta.id)];
           nextRecords = [...rows, ...nextRecords.filter((r) => r.fileId !== meta.id)];
           results.push({ name: file.name });
-        } catch {
+        } catch (err) {
+          const detail = err instanceof Error && err.message ? err.message : "";
           results.push({
             name: file.name,
-            error: "Não foi possível ler ou salvar o arquivo. Ele pode estar corrompido ou protegido.",
+            error: detail
+              ? `Falha ao importar: ${detail}`
+              : "Não foi possível ler ou salvar o arquivo. Ele pode estar corrompido ou protegido por senha.",
           });
         }
       }
@@ -345,7 +354,31 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     [userId, run],
   );
 
+  /** Exclusão suave: o registro vai para a lixeira e pode ser restaurado. */
   const deleteRecord = useCallback<Ctx["deleteRecord"]>(
+    async (id) => {
+      const current = recordsRef.current.find((r) => r.id === id);
+      if (!current) return;
+      const next: Transaction = { ...current, deletedAt: new Date().toISOString() };
+      setRecords((prev) => prev.map((r) => (r.id === id ? next : r)));
+      await run(() => upsertRecords(userId, [next]));
+    },
+    [userId, run],
+  );
+
+  const restoreRecord = useCallback<Ctx["restoreRecord"]>(
+    async (id) => {
+      const current = recordsRef.current.find((r) => r.id === id);
+      if (!current) return;
+      const { deletedAt: _drop, ...rest } = current;
+      const next = rest as Transaction;
+      setRecords((prev) => prev.map((r) => (r.id === id ? next : r)));
+      await run(() => upsertRecords(userId, [next]));
+    },
+    [userId, run],
+  );
+
+  const purgeRecord = useCallback<Ctx["purgeRecord"]>(
     async (id) => {
       setRecords((prev) => prev.filter((r) => r.id !== id));
       await run(() => deleteRecords(userId, [id]));
@@ -353,8 +386,26 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     [userId, run],
   );
 
+  const purgeAllDeleted = useCallback<Ctx["purgeAllDeleted"]>(async () => {
+    const ids = recordsRef.current.filter((r) => r.deletedAt).map((r) => r.id);
+    if (ids.length === 0) return;
+    setRecords((prev) => prev.filter((r) => !r.deletedAt));
+    await run(() => deleteRecords(userId, ids));
+  }, [userId, run]);
+
+  const byDateDesc = (a: Transaction, b: Transaction) =>
+    a.date < b.date ? 1 : a.date > b.date ? -1 : 0;
+
   const transactions = useMemo(
-    () => [...records].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)),
+    () => records.filter((r) => !r.deletedAt).sort(byDateDesc),
+    [records],
+  );
+
+  const deletedRecords = useMemo(
+    () =>
+      records
+        .filter((r) => r.deletedAt)
+        .sort((a, b) => (a.deletedAt! < b.deletedAt! ? 1 : -1)),
     [records],
   );
 
@@ -362,7 +413,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     () =>
       fileMetas.map((meta) => ({
         ...meta,
-        transactions: records.filter((r) => r.fileId === meta.id),
+        transactions: records.filter((r) => r.fileId === meta.id && !r.deletedAt),
       })),
     [fileMetas, records],
   );
@@ -374,6 +425,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       error,
       files,
       transactions,
+      deletedRecords,
       goal,
       settings,
       layout,
@@ -387,6 +439,9 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       addRecords,
       updateRecord,
       deleteRecord,
+      restoreRecord,
+      purgeRecord,
+      purgeAllDeleted,
     }),
     [
       ready,
@@ -394,6 +449,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       error,
       files,
       transactions,
+      deletedRecords,
       goal,
       settings,
       layout,
@@ -407,6 +463,9 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       addRecords,
       updateRecord,
       deleteRecord,
+      restoreRecord,
+      purgeRecord,
+      purgeAllDeleted,
     ],
   );
 
