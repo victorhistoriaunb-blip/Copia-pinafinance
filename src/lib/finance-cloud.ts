@@ -153,12 +153,17 @@ export function fileFromRow(r: Record<string, unknown>): WorkbookMeta {
 const CHUNK = 400;
 
 export async function upsertRecords(userId: string, list: Transaction[]) {
-  for (let i = 0; i < list.length; i += CHUNK) {
-    const rows = list.slice(i, i + CHUNK).map((t) => toRow(userId, t));
-    const { error } = await supabase.from("finance_records").upsert(rows as never);
-    if (error) throw error;
+  // Remove ids repetidos: o Postgres rejeita o mesmo id duas vezes no upsert.
+  const unique = [...new Map(list.map((t) => [t.id, t])).values()];
+  for (let i = 0; i < unique.length; i += CHUNK) {
+    const rows = unique.slice(i, i + CHUNK).map((t) => toRow(userId, t));
+    const { error } = await supabase
+      .from("finance_records")
+      .upsert(rows as never, { onConflict: "user_id,id" });
+    if (error) throw new Error(error.message);
   }
 }
+
 
 export async function deleteRecords(userId: string, ids: string[]) {
   for (let i = 0; i < ids.length; i += CHUNK) {
