@@ -129,11 +129,19 @@ function findHeaderRow(rows: unknown[][]) {
   return best;
 }
 
+/** Limita textos para não estourar limites de gravação. */
+const clip = (v: string, max = 500) => (v.length > max ? `${v.slice(0, max)}…` : v);
+
 export function parseWorkbook(fileId: string, fileName: string, buffer: ArrayBuffer) {
-  const wb = XLSX.read(buffer, { cellDates: true });
+  // Uint8Array + type "array" é o caminho compatível com todos os navegadores.
+  const wb = XLSX.read(new Uint8Array(buffer), { type: "array", cellDates: true });
+  if (!wb.SheetNames || wb.SheetNames.length === 0) {
+    throw new Error("A planilha não tem abas legíveis.");
+  }
   const sheets: SheetSummary[] = [];
   const issues: ImportIssue[] = [];
   const transactions: Transaction[] = [];
+
 
   for (const sheetName of wb.SheetNames) {
     const ws = wb.Sheets[sheetName];
