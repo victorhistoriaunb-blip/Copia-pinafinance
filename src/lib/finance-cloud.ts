@@ -54,7 +54,7 @@ export function toRow(userId: string, t: Transaction): RecordRow {
     file_id: t.fileId,
     file_name: t.fileName,
     sheet: t.sheet,
-    extra: t.extra ?? null,
+    extra: extraWithFlags(t),
   };
 }
 
