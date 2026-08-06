@@ -14,18 +14,13 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as GatedIndexRouteImport } from './routes/_gated.index'
 import { Route as GatedAnaliseRouteImport } from './routes/_gated.analise'
-import { Route as GatedAnoRouteImport } from './routes/_gated.ano'
-import { Route as GatedCategoriasRouteImport } from './routes/_gated.categorias'
 import { Route as GatedComoUsarRouteImport } from './routes/_gated.como-usar'
 import { Route as GatedConfiguracoesRouteImport } from './routes/_gated.configuracoes'
 import { Route as GatedContasRouteImport } from './routes/_gated.contas'
-import { Route as GatedDiaRouteImport } from './routes/_gated.dia'
 import { Route as GatedImportarRouteImport } from './routes/_gated.importar'
-import { Route as GatedMesRouteImport } from './routes/_gated.mes'
 import { Route as GatedMetasRouteImport } from './routes/_gated.metas'
 import { Route as GatedPaineisRouteImport } from './routes/_gated.paineis'
 import { Route as GatedRelatoriosRouteImport } from './routes/_gated.relatorios'
-import { Route as GatedSemanaRouteImport } from './routes/_gated.semana'
 
 const GatedRoute = GatedRouteImport.update({
   id: '/_gated',
@@ -51,16 +46,6 @@ const GatedAnaliseRoute = GatedAnaliseRouteImport.update({
   path: '/analise',
   getParentRoute: () => GatedRoute,
 } as any)
-const GatedAnoRoute = GatedAnoRouteImport.update({
-  id: '/ano',
-  path: '/ano',
-  getParentRoute: () => GatedRoute,
-} as any)
-const GatedCategoriasRoute = GatedCategoriasRouteImport.update({
-  id: '/categorias',
-  path: '/categorias',
-  getParentRoute: () => GatedRoute,
-} as any)
 const GatedComoUsarRoute = GatedComoUsarRouteImport.update({
   id: '/como-usar',
   path: '/como-usar',
@@ -76,19 +61,9 @@ const GatedContasRoute = GatedContasRouteImport.update({
   path: '/contas',
   getParentRoute: () => GatedRoute,
 } as any)
-const GatedDiaRoute = GatedDiaRouteImport.update({
-  id: '/dia',
-  path: '/dia',
-  getParentRoute: () => GatedRoute,
-} as any)
 const GatedImportarRoute = GatedImportarRouteImport.update({
   id: '/importar',
   path: '/importar',
-  getParentRoute: () => GatedRoute,
-} as any)
-const GatedMesRoute = GatedMesRouteImport.update({
-  id: '/mes',
-  path: '/mes',
   getParentRoute: () => GatedRoute,
 } as any)
 const GatedMetasRoute = GatedMetasRouteImport.update({
@@ -106,46 +81,31 @@ const GatedRelatoriosRoute = GatedRelatoriosRouteImport.update({
   path: '/relatorios',
   getParentRoute: () => GatedRoute,
 } as any)
-const GatedSemanaRoute = GatedSemanaRouteImport.update({
-  id: '/semana',
-  path: '/semana',
-  getParentRoute: () => GatedRoute,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof GatedIndexRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/analise': typeof GatedAnaliseRoute
-  '/ano': typeof GatedAnoRoute
-  '/categorias': typeof GatedCategoriasRoute
   '/como-usar': typeof GatedComoUsarRoute
   '/configuracoes': typeof GatedConfiguracoesRoute
   '/contas': typeof GatedContasRoute
-  '/dia': typeof GatedDiaRoute
   '/importar': typeof GatedImportarRoute
-  '/mes': typeof GatedMesRoute
   '/metas': typeof GatedMetasRoute
   '/paineis': typeof GatedPaineisRoute
   '/relatorios': typeof GatedRelatoriosRoute
-  '/semana': typeof GatedSemanaRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/analise': typeof GatedAnaliseRoute
-  '/ano': typeof GatedAnoRoute
-  '/categorias': typeof GatedCategoriasRoute
   '/como-usar': typeof GatedComoUsarRoute
   '/configuracoes': typeof GatedConfiguracoesRoute
   '/contas': typeof GatedContasRoute
-  '/dia': typeof GatedDiaRoute
   '/importar': typeof GatedImportarRoute
-  '/mes': typeof GatedMesRoute
   '/metas': typeof GatedMetasRoute
   '/paineis': typeof GatedPaineisRoute
   '/relatorios': typeof GatedRelatoriosRoute
-  '/semana': typeof GatedSemanaRoute
   '/': typeof GatedIndexRoute
 }
 export interface FileRoutesById {
@@ -154,18 +114,13 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/_gated/analise': typeof GatedAnaliseRoute
-  '/_gated/ano': typeof GatedAnoRoute
-  '/_gated/categorias': typeof GatedCategoriasRoute
   '/_gated/como-usar': typeof GatedComoUsarRoute
   '/_gated/configuracoes': typeof GatedConfiguracoesRoute
   '/_gated/contas': typeof GatedContasRoute
-  '/_gated/dia': typeof GatedDiaRoute
   '/_gated/importar': typeof GatedImportarRoute
-  '/_gated/mes': typeof GatedMesRoute
   '/_gated/metas': typeof GatedMetasRoute
   '/_gated/paineis': typeof GatedPaineisRoute
   '/_gated/relatorios': typeof GatedRelatoriosRoute
-  '/_gated/semana': typeof GatedSemanaRoute
   '/_gated/': typeof GatedIndexRoute
 }
 export interface FileRouteTypes {
@@ -175,35 +130,25 @@ export interface FileRouteTypes {
     | '/login'
     | '/reset-password'
     | '/analise'
-    | '/ano'
-    | '/categorias'
     | '/como-usar'
     | '/configuracoes'
     | '/contas'
-    | '/dia'
     | '/importar'
-    | '/mes'
     | '/metas'
     | '/paineis'
     | '/relatorios'
-    | '/semana'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
     | '/reset-password'
     | '/analise'
-    | '/ano'
-    | '/categorias'
     | '/como-usar'
     | '/configuracoes'
     | '/contas'
-    | '/dia'
     | '/importar'
-    | '/mes'
     | '/metas'
     | '/paineis'
     | '/relatorios'
-    | '/semana'
     | '/'
   id:
     | '__root__'
@@ -211,18 +156,13 @@ export interface FileRouteTypes {
     | '/login'
     | '/reset-password'
     | '/_gated/analise'
-    | '/_gated/ano'
-    | '/_gated/categorias'
     | '/_gated/como-usar'
     | '/_gated/configuracoes'
     | '/_gated/contas'
-    | '/_gated/dia'
     | '/_gated/importar'
-    | '/_gated/mes'
     | '/_gated/metas'
     | '/_gated/paineis'
     | '/_gated/relatorios'
-    | '/_gated/semana'
     | '/_gated/'
   fileRoutesById: FileRoutesById
 }
@@ -269,20 +209,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GatedAnaliseRouteImport
       parentRoute: typeof GatedRoute
     }
-    '/_gated/ano': {
-      id: '/_gated/ano'
-      path: '/ano'
-      fullPath: '/ano'
-      preLoaderRoute: typeof GatedAnoRouteImport
-      parentRoute: typeof GatedRoute
-    }
-    '/_gated/categorias': {
-      id: '/_gated/categorias'
-      path: '/categorias'
-      fullPath: '/categorias'
-      preLoaderRoute: typeof GatedCategoriasRouteImport
-      parentRoute: typeof GatedRoute
-    }
     '/_gated/como-usar': {
       id: '/_gated/como-usar'
       path: '/como-usar'
@@ -304,25 +230,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GatedContasRouteImport
       parentRoute: typeof GatedRoute
     }
-    '/_gated/dia': {
-      id: '/_gated/dia'
-      path: '/dia'
-      fullPath: '/dia'
-      preLoaderRoute: typeof GatedDiaRouteImport
-      parentRoute: typeof GatedRoute
-    }
     '/_gated/importar': {
       id: '/_gated/importar'
       path: '/importar'
       fullPath: '/importar'
       preLoaderRoute: typeof GatedImportarRouteImport
-      parentRoute: typeof GatedRoute
-    }
-    '/_gated/mes': {
-      id: '/_gated/mes'
-      path: '/mes'
-      fullPath: '/mes'
-      preLoaderRoute: typeof GatedMesRouteImport
       parentRoute: typeof GatedRoute
     }
     '/_gated/metas': {
@@ -346,47 +258,30 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GatedRelatoriosRouteImport
       parentRoute: typeof GatedRoute
     }
-    '/_gated/semana': {
-      id: '/_gated/semana'
-      path: '/semana'
-      fullPath: '/semana'
-      preLoaderRoute: typeof GatedSemanaRouteImport
-      parentRoute: typeof GatedRoute
-    }
   }
 }
 
 interface GatedRouteChildren {
   GatedAnaliseRoute: typeof GatedAnaliseRoute
-  GatedAnoRoute: typeof GatedAnoRoute
-  GatedCategoriasRoute: typeof GatedCategoriasRoute
   GatedComoUsarRoute: typeof GatedComoUsarRoute
   GatedConfiguracoesRoute: typeof GatedConfiguracoesRoute
   GatedContasRoute: typeof GatedContasRoute
-  GatedDiaRoute: typeof GatedDiaRoute
   GatedImportarRoute: typeof GatedImportarRoute
-  GatedMesRoute: typeof GatedMesRoute
   GatedMetasRoute: typeof GatedMetasRoute
   GatedPaineisRoute: typeof GatedPaineisRoute
   GatedRelatoriosRoute: typeof GatedRelatoriosRoute
-  GatedSemanaRoute: typeof GatedSemanaRoute
   GatedIndexRoute: typeof GatedIndexRoute
 }
 
 const GatedRouteChildren: GatedRouteChildren = {
   GatedAnaliseRoute: GatedAnaliseRoute,
-  GatedAnoRoute: GatedAnoRoute,
-  GatedCategoriasRoute: GatedCategoriasRoute,
   GatedComoUsarRoute: GatedComoUsarRoute,
   GatedConfiguracoesRoute: GatedConfiguracoesRoute,
   GatedContasRoute: GatedContasRoute,
-  GatedDiaRoute: GatedDiaRoute,
   GatedImportarRoute: GatedImportarRoute,
-  GatedMesRoute: GatedMesRoute,
   GatedMetasRoute: GatedMetasRoute,
   GatedPaineisRoute: GatedPaineisRoute,
   GatedRelatoriosRoute: GatedRelatoriosRoute,
-  GatedSemanaRoute: GatedSemanaRoute,
   GatedIndexRoute: GatedIndexRoute,
 }
 

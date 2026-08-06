@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Download, Search } from "lucide-react";
+import { Download, LayoutGrid, List, Search } from "lucide-react";
 import { useFinance } from "@/lib/finance-store";
 import { availableMonths, brl, fullMonthLabel, monthKey, totals } from "@/lib/analytics";
 import { Page, Select } from "@/components/dashboard/page";
 import { Panel } from "@/components/dashboard/charts";
 import { TransactionsTable } from "@/components/dashboard/transactions-table";
+import { RecordCard } from "@/components/dashboard/record-card";
 
 export const Route = createFileRoute("/_gated/relatorios")({
   head: () => ({
@@ -34,6 +35,7 @@ function ReportsPage() {
   const [type, setType] = useState("all");
   const [category, setCategory] = useState("all");
   const [term, setTerm] = useState("");
+  const [view, setView] = useState<"cards" | "tabela">("cards");
 
   const rows = useMemo(
     () =>
@@ -132,8 +134,49 @@ function ReportsPage() {
           </div>
         </Panel>
 
-        <Panel title="Lançamentos" description="Resultado dos filtros" delay={0.1}>
-          <TransactionsTable rows={rows} limit={500} />
+        <Panel
+          title="Lançamentos"
+          description={`Resultado dos filtros · ${rows.length} registro(s)`}
+          delay={0.1}
+        >
+          <div className="mb-4 inline-flex rounded-xl border border-border p-1">
+            {([
+              ["cards", "Cards", LayoutGrid],
+              ["tabela", "Tabela", List],
+            ] as const).map(([value, label, Icon]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setView(value)}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  view === value
+                    ? "bg-primary/15 text-primary"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Icon className="size-3.5" /> {label}
+              </button>
+            ))}
+          </div>
+
+          {rows.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              Nenhum lançamento com esses filtros.
+            </p>
+          ) : view === "tabela" ? (
+            <TransactionsTable rows={rows} limit={500} />
+          ) : (
+            <div className="grid gap-3 xl:grid-cols-2">
+              {rows.slice(0, 200).map((t) => (
+                <RecordCard key={t.id} t={t} />
+              ))}
+            </div>
+          )}
+          {view === "cards" && rows.length > 200 && (
+            <p className="mt-3 text-center text-xs text-muted-foreground">
+              Mostrando os 200 primeiros — refine os filtros ou use a visão em tabela.
+            </p>
+          )}
         </Panel>
       </div>
     </Page>

@@ -9,10 +9,12 @@ import {
   Loader2,
   Trash2,
   UploadCloud,
+  Download,
 } from "lucide-react";
 import { useFinance } from "@/lib/finance-store";
 import { Page } from "@/components/dashboard/page";
 import { Panel } from "@/components/dashboard/charts";
+import { downloadTemplate, TEMPLATE_HEADERS } from "@/lib/xlsx-template";
 
 export const Route = createFileRoute("/_gated/importar")({
   head: () => ({
@@ -78,7 +80,15 @@ function ImportPage() {
       subtitle="Os arquivos ficam salvos na sua conta e voltam em qualquer dispositivo"
       requireData={false}
       actions={
-        files.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => downloadTemplate()}
+            className="inline-flex items-center gap-2 rounded-lg bg-[image:var(--gradient-primary)] px-3 py-2 text-xs font-semibold text-primary-foreground transition-all hover:brightness-110"
+          >
+            <Download className="size-3.5" /> Baixar modelo
+          </button>
+          {files.length > 0 ? (
           <button
             type="button"
             onClick={() => void clearAll()}
@@ -86,7 +96,8 @@ function ImportPage() {
           >
             Remover todas
           </button>
-        ) : null
+          ) : null}
+        </div>
       }
     >
       <div className="flex flex-col gap-5">
@@ -127,6 +138,30 @@ function ImportPage() {
             Formatos aceitos: .xlsx e .xls · múltiplos arquivos · todas as abas são lidas automaticamente
           </p>
         </motion.div>
+
+        <Panel title="Modelo base de planilha" description="Formato esperado — nenhuma coluna é obrigatória">
+          <p className="text-sm text-muted-foreground">
+            Baixe o modelo, preencha uma linha por lançamento e envie de volta. Colunas ausentes
+            ficam vazias e colunas extras são preservadas no detalhamento de cada registro.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {TEMPLATE_HEADERS.map((h) => (
+              <span
+                key={h}
+                className="rounded-lg bg-surface/60 px-2.5 py-1 text-[11px] font-medium text-muted-foreground"
+              >
+                {h}
+              </span>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => downloadTemplate()}
+            className="mt-4 inline-flex h-10 items-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold text-foreground transition-colors hover:border-primary/60"
+          >
+            <Download className="size-4" /> Baixar modelo (.xlsx)
+          </button>
+        </Panel>
 
         {pending.length > 0 && (
           <Panel
