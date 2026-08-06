@@ -172,7 +172,7 @@ export async function deleteRecords(userId: string, ids: string[]) {
       .delete()
       .eq("user_id", userId)
       .in("id", ids.slice(i, i + CHUNK));
-    if (error) throw error;
+    if (error) throw new Error(error.message);
   }
 }
 
@@ -182,7 +182,7 @@ export async function deleteRecordsByFile(userId: string, fileId: string) {
     .delete()
     .eq("user_id", userId)
     .eq("file_id", fileId);
-  if (error) throw error;
+  if (error) throw new Error(error.message);
 }
 
 export async function fetchAllRecords(userId: string): Promise<Transaction[]> {
@@ -194,7 +194,7 @@ export async function fetchAllRecords(userId: string): Promise<Transaction[]> {
       .select("*")
       .eq("user_id", userId)
       .range(from, from + page - 1);
-    if (error) throw error;
+    if (error) throw new Error(error.message);
     const rows = (data ?? []) as unknown as Record<string, unknown>[];
     all.push(...rows.map(fromRow));
     if (rows.length < page) break;
@@ -208,13 +208,15 @@ export async function fetchFiles(userId: string): Promise<WorkbookMeta[]> {
     .select("*")
     .eq("user_id", userId)
     .order("imported_at", { ascending: false });
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return ((data ?? []) as unknown as Record<string, unknown>[]).map(fileFromRow);
 }
 
 export async function upsertFile(userId: string, f: WorkbookMeta) {
-  const { error } = await supabase.from("finance_files").upsert(fileToRow(userId, f) as never);
-  if (error) throw error;
+  const { error } = await supabase
+    .from("finance_files")
+    .upsert(fileToRow(userId, f) as never, { onConflict: "user_id,id" });
+  if (error) throw new Error(error.message);
 }
 
 export async function deleteFile(userId: string, id: string) {
@@ -223,7 +225,7 @@ export async function deleteFile(userId: string, id: string) {
     .delete()
     .eq("user_id", userId)
     .eq("id", id);
-  if (error) throw error;
+  if (error) throw new Error(error.message);
 }
 
 export async function fetchPrefs(userId: string) {
@@ -232,7 +234,7 @@ export async function fetchPrefs(userId: string) {
     .select("goal, settings, layout")
     .eq("user_id", userId)
     .maybeSingle();
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return (data ?? null) as { goal: unknown; settings: unknown; layout: unknown } | null;
 }
 
@@ -242,6 +244,6 @@ export async function savePrefs(
 ) {
   const { error } = await supabase
     .from("finance_prefs")
-    .upsert({ user_id: userId, ...patch } as never);
-  if (error) throw error;
+    .upsert({ user_id: userId, ...patch } as never, { onConflict: "user_id" });
+  if (error) throw new Error(error.message);
 }
