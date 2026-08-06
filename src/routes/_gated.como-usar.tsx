@@ -60,7 +60,7 @@ const STEPS = [
     body: [
       "O Dashboard mostra saldo, receitas, despesas, economia, gráficos e insights do período escolhido.",
       "Em Painéis, clique em “Personalizar” para mostrar/ocultar cards, mudar o tamanho e reordenar. A organização fica salva na sua conta.",
-      "Dia, Semana, Mês, Ano e Categorias oferecem recortes prontos dos mesmos dados.",
+      "Análise reúne dia, semana, mês, ano e categorias em uma única tela com filtros.",
     ],
   },
   {

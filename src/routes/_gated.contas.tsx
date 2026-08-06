@@ -1,22 +1,13 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { motion } from "motion/react";
-import { ChevronDown, Copy, CopyCheck, Pencil, Trash2, X } from "lucide-react";
+import { Copy, X } from "lucide-react";
 import { useFinance } from "@/lib/finance-store";
-import {
-  EXPENSE_KINDS,
-  EXPENSE_KIND_LABEL,
-  STATUS_LABEL,
-  remainingOf,
-  type ExpenseKind,
-  type PaymentStatus,
-  type Transaction,
-} from "@/lib/finance.types";
-import { availableMonths, brl2, fullMonthLabel, monthKey, shiftMonth } from "@/lib/analytics";
+import { STATUS_LABEL, type ExpenseKind, type PaymentStatus, type Transaction } from "@/lib/finance.types";
+import { availableMonths, fullMonthLabel, monthKey, shiftMonth } from "@/lib/analytics";
 import { Page, Select, NewRecordButton } from "@/components/dashboard/page";
-import { StatusBadge } from "@/components/dashboard/status-badge";
 import { RecordDialog } from "@/components/dashboard/record-form";
-import { paidFromStatus } from "@/components/dashboard/transactions-table";
+import { RecordCard, DeletedRecords, KIND_OPTIONS, STATUS_OPTIONS } from "@/components/dashboard/record-card";
 import {
   InlineDate,
   InlineMoney,
@@ -45,198 +36,6 @@ export const Route = createFileRoute("/_gated/contas")({
   }),
   component: ContasPage,
 });
-
-const KIND_OPTIONS = EXPENSE_KINDS.map((k) => ({ value: k, label: EXPENSE_KIND_LABEL[k] }));
-const STATUS_OPTIONS = (Object.keys(STATUS_LABEL) as PaymentStatus[]).map((s) => ({
-  value: s,
-  label: STATUS_LABEL[s],
-}));
-
-const fmtDate = (v: string) =>
-  v ? new Date(`${v}T00:00:00Z`).toLocaleDateString("pt-BR", { timeZone: "UTC" }) : "—";
-
-function textOf(t: Transaction) {
-  return [
-    `Conta: ${t.description}`,
-    `Data: ${fmtDate(t.date)}`,
-    `Despesa: ${EXPENSE_KIND_LABEL[t.expenseKind]}`,
-    `Vencimento: ${fmtDate(t.dueDate)}`,
-    `Situação: ${STATUS_LABEL[t.status]}`,
-    `Valor: ${brl2(t.amount)}`,
-    `Pago: ${brl2(t.paidAmount)} · Restante: ${brl2(remainingOf(t))}`,
-    t.notes ? `Observações: ${t.notes}` : "",
-    t.details ? `Detalhamento: ${t.details}` : "",
-  ]
-    .filter(Boolean)
-    .join("\n");
-}
-
-const labelCls = "text-[10px] font-semibold tracking-wide text-muted-foreground uppercase";
-
-function AccountCard({
-  t,
-  selected,
-  onSelect,
-  onEdit,
-}: {
-  t: Transaction;
-  selected: boolean;
-  onSelect: (v: boolean) => void;
-  onEdit: () => void;
-}) {
-  const { updateRecord, deleteRecord } = useFinance();
-  const [open, setOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const up = (data: Partial<Transaction>) => void updateRecord(t.id, data);
-
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(textOf(t));
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
-    } catch {
-      /* clipboard indisponível */
-    }
-  }
-
-  return (
-    <motion.article
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-      className={`panel panel-hover flex flex-col gap-3 p-4 ${selected ? "ring-2 ring-primary/50" : ""}`}
-    >
-      <div className="flex items-start gap-3">
-        <input
-          type="checkbox"
-          checked={selected}
-          onChange={(e) => onSelect(e.target.checked)}
-          aria-label={`Selecionar ${t.description}`}
-          className="mt-1 size-4 shrink-0 accent-[var(--color-primary)]"
-        />
-        <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-2">
-          <div className="min-w-0">
-            <p className={labelCls}>Data</p>
-            <div className="text-sm text-foreground">
-              <InlineDate label="data" value={t.date} onSave={(v) => up({ date: v })} />
-            </div>
-          </div>
-          <div className="min-w-0">
-            <p className={labelCls}>Conta</p>
-            <div className="truncate text-sm font-semibold text-foreground">
-              <InlineText
-                label="conta"
-                value={t.description}
-                onSave={(v) => up({ description: v })}
-                placeholder="Nome da conta"
-              />
-            </div>
-          </div>
-          <div className="min-w-0">
-            <p className={labelCls}>Despesa</p>
-            <div className="text-sm text-foreground">
-              <InlineSelect
-                label="despesa"
-                value={t.expenseKind}
-                options={KIND_OPTIONS}
-                onSave={(v) => up({ expenseKind: v as ExpenseKind })}
-              />
-            </div>
-          </div>
-          <div className="min-w-0">
-            <p className={labelCls}>Vencimento</p>
-            <div className="text-sm text-foreground">
-              <InlineDate label="vencimento" value={t.dueDate} onSave={(v) => up({ dueDate: v })} />
-            </div>
-          </div>
-          <div className="min-w-0">
-            <p className={labelCls}>Situação</p>
-            <div className="text-sm">
-              <InlineSelect
-                label="situação"
-                value={t.status}
-                options={STATUS_OPTIONS}
-                onSave={(v) => up(paidFromStatus(v as PaymentStatus, t))}
-              >
-                <StatusBadge status={t.status} />
-              </InlineSelect>
-            </div>
-          </div>
-          <div className="min-w-0">
-            <p className={labelCls}>Valor</p>
-            <div
-              className={`text-sm font-semibold ${t.type === "receita" ? "text-success" : "text-foreground"}`}
-            >
-              <InlineMoney label="valor" value={t.amount} onSave={(v) => up({ amount: v })} />
-            </div>
-          </div>
-        </div>
-
-        <div className="flex shrink-0 gap-1.5">
-          <button
-            type="button"
-            onClick={onEdit}
-            aria-label={`Editar ${t.description}`}
-            className="grid size-8 place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:border-primary/60 hover:text-foreground"
-          >
-            <Pencil className="size-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => void deleteRecord(t.id)}
-            aria-label={`Excluir ${t.description}`}
-            className="grid size-8 place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:border-destructive/60 hover:text-destructive"
-          >
-            <Trash2 className="size-3.5" />
-          </button>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-2 border-t border-border/60 pt-2">
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ChevronDown className={`size-3.5 transition-transform ${open ? "rotate-180" : ""}`} />
-          Detalhamento
-        </button>
-        <button
-          type="button"
-          onClick={() => void copy()}
-          className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary/60 hover:text-foreground"
-        >
-          {copied ? <CopyCheck className="size-3.5 text-success" /> : <Copy className="size-3.5" />}
-          {copied ? "Copiado" : "Copiar informações"}
-        </button>
-      </div>
-
-      {open && (
-        <div className="grid gap-2 rounded-xl bg-surface/50 p-3 text-[11px] text-muted-foreground">
-          <p>
-            Pago: <strong className="text-foreground">{brl2(t.paidAmount)}</strong> · Restante:{" "}
-            <strong className="text-foreground">{brl2(remainingOf(t))}</strong> · Pagamento em{" "}
-            {fmtDate(t.paymentDate)}
-          </p>
-          {t.notes && <p>Observações: {t.notes}</p>}
-          {t.details && <p>Informações adicionais: {t.details}</p>}
-          {t.history && <p>Histórico: {t.history}</p>}
-          {t.comments && <p>Comentários: {t.comments}</p>}
-          {t.links && <p className="truncate">Links: {t.links}</p>}
-          {(t.account || t.method) && (
-            <p>
-              {t.account && `Conta bancária: ${t.account}`} {t.method && `· Forma: ${t.method}`}
-            </p>
-          )}
-          {t.source === "planilha" && <p>Origem: {t.fileName} · aba {t.sheet}</p>}
-          {!t.notes && !t.details && !t.history && !t.comments && !t.links && (
-            <p>Sem informações complementares — use a caneta para preencher a aba Detalhamento.</p>
-          )}
-        </div>
-      )}
-    </motion.article>
-  );
-}
 
 type Draft = {
   sourceId: string;
@@ -529,7 +328,7 @@ function ContasPage() {
         ) : (
           <div className="grid gap-3 xl:grid-cols-2">
             {rows.map((t) => (
-              <AccountCard
+              <RecordCard
                 key={t.id}
                 t={t}
                 selected={selected.includes(t.id)}
@@ -541,6 +340,8 @@ function ContasPage() {
             ))}
           </div>
         )}
+
+        <DeletedRecords />
       </div>
     </Page>
   );

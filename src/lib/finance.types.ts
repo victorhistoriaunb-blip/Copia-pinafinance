@@ -44,6 +44,9 @@ export type Transaction = {
   sheet: string;
   /** Colunas extras encontradas na planilha (chave = cabeçalho original) */
   extra?: Record<string, string>;
+  /** Quando preenchido (ISO), o registro está na lixeira e pode ser restaurado. */
+  deletedAt?: string;
+
 };
 
 export type NewTransaction = Omit<

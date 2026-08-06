@@ -29,38 +29,68 @@ export type RecordRow = {
   extra: Record<string, string> | null;
 };
 
+/** Chave interna usada para marcar registros na lixeira (soft delete). */
+const DELETED_KEY = "__deletedAt";
+
+const txt = (v: unknown, max = 2000) => {
+  const s = v == null ? "" : String(v);
+  return s.length > max ? s.slice(0, max) : s;
+};
+
+const num = (v: unknown) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
+
+function extraWithFlags(t: Transaction): Record<string, string> | null {
+  const base: Record<string, string> = {};
+  for (const [k, v] of Object.entries(t.extra ?? {})) {
+    if (k === DELETED_KEY) continue;
+    base[txt(k, 120)] = txt(v);
+  }
+  if (t.deletedAt) base[DELETED_KEY] = t.deletedAt;
+  return Object.keys(base).length > 0 ? base : null;
+}
+
 export function toRow(userId: string, t: Transaction): RecordRow {
   return {
     user_id: userId,
-    id: t.id,
-    date: t.date,
-    type: t.type,
-    category: t.category,
+    id: txt(t.id, 300),
+    date: txt(t.date, 10),
+    type: t.type === "receita" ? "receita" : "despesa",
+    category: txt(t.category, 200),
     expense_kind: t.expenseKind,
-    description: t.description,
-    account: t.account,
-    method: t.method,
-    due_date: t.dueDate,
-    amount: t.amount,
-    notes: t.notes,
-    details: t.details,
-    history: t.history,
-    links: t.links,
-    comments: t.comments,
-    paid_amount: t.paidAmount,
-    payment_date: t.paymentDate,
+    description: txt(t.description, 300),
+    account: txt(t.account, 200),
+    method: txt(t.method, 200),
+    due_date: txt(t.dueDate, 10),
+    amount: num(t.amount),
+    notes: txt(t.notes),
+    details: txt(t.details),
+    history: txt(t.history),
+    links: txt(t.links),
+    comments: txt(t.comments),
+    paid_amount: num(t.paidAmount),
+    payment_date: txt(t.paymentDate, 10),
     status: t.status,
     source: t.source,
-    file_id: t.fileId,
-    file_name: t.fileName,
-    sheet: t.sheet,
-    extra: t.extra ?? null,
+    file_id: txt(t.fileId, 300),
+    file_name: txt(t.fileName, 300),
+    sheet: txt(t.sheet, 200),
+    extra: extraWithFlags(t),
   };
 }
 
 export function fromRow(r: Record<string, unknown>): Transaction {
   const s = (k: string) => String(r[k] ?? "");
   const n = (k: string) => Number(r[k] ?? 0);
+  const rawExtra =
+    r["extra"] && typeof r["extra"] === "object"
+      ? ({ ...(r["extra"] as Record<string, string>) } as Record<string, string>)
+      : null;
+  const deletedAt = rawExtra?.[DELETED_KEY] ?? "";
+  if (rawExtra) delete rawExtra[DELETED_KEY];
+  const hasExtra = rawExtra && Object.keys(rawExtra).length > 0;
   return {
     id: s("id"),
     date: s("date"),
@@ -89,11 +119,11 @@ export function fromRow(r: Record<string, unknown>): Transaction {
     fileId: s("file_id"),
     fileName: s("file_name"),
     sheet: s("sheet"),
-    ...(r["extra"] && typeof r["extra"] === "object"
-      ? { extra: r["extra"] as Record<string, string> }
-      : {}),
+    ...(hasExtra ? { extra: rawExtra as Record<string, string> } : {}),
+    ...(deletedAt ? { deletedAt } : {}),
   };
 }
+
 
 export type WorkbookMeta = Omit<ImportedWorkbook, "transactions">;
 
@@ -123,12 +153,17 @@ export function fileFromRow(r: Record<string, unknown>): WorkbookMeta {
 const CHUNK = 400;
 
 export async function upsertRecords(userId: string, list: Transaction[]) {
-  for (let i = 0; i < list.length; i += CHUNK) {
-    const rows = list.slice(i, i + CHUNK).map((t) => toRow(userId, t));
-    const { error } = await supabase.from("finance_records").upsert(rows as never);
-    if (error) throw error;
+  // Remove ids repetidos: o Postgres rejeita o mesmo id duas vezes no upsert.
+  const unique = [...new Map(list.map((t) => [t.id, t])).values()];
+  for (let i = 0; i < unique.length; i += CHUNK) {
+    const rows = unique.slice(i, i + CHUNK).map((t) => toRow(userId, t));
+    const { error } = await supabase
+      .from("finance_records")
+      .upsert(rows as never, { onConflict: "user_id,id" });
+    if (error) throw new Error(error.message);
   }
 }
+
 
 export async function deleteRecords(userId: string, ids: string[]) {
   for (let i = 0; i < ids.length; i += CHUNK) {
@@ -137,7 +172,7 @@ export async function deleteRecords(userId: string, ids: string[]) {
       .delete()
       .eq("user_id", userId)
       .in("id", ids.slice(i, i + CHUNK));
-    if (error) throw error;
+    if (error) throw new Error(error.message);
   }
 }
 
@@ -147,7 +182,7 @@ export async function deleteRecordsByFile(userId: string, fileId: string) {
     .delete()
     .eq("user_id", userId)
     .eq("file_id", fileId);
-  if (error) throw error;
+  if (error) throw new Error(error.message);
 }
 
 export async function fetchAllRecords(userId: string): Promise<Transaction[]> {
@@ -159,7 +194,7 @@ export async function fetchAllRecords(userId: string): Promise<Transaction[]> {
       .select("*")
       .eq("user_id", userId)
       .range(from, from + page - 1);
-    if (error) throw error;
+    if (error) throw new Error(error.message);
     const rows = (data ?? []) as unknown as Record<string, unknown>[];
     all.push(...rows.map(fromRow));
     if (rows.length < page) break;
@@ -173,13 +208,15 @@ export async function fetchFiles(userId: string): Promise<WorkbookMeta[]> {
     .select("*")
     .eq("user_id", userId)
     .order("imported_at", { ascending: false });
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return ((data ?? []) as unknown as Record<string, unknown>[]).map(fileFromRow);
 }
 
 export async function upsertFile(userId: string, f: WorkbookMeta) {
-  const { error } = await supabase.from("finance_files").upsert(fileToRow(userId, f) as never);
-  if (error) throw error;
+  const { error } = await supabase
+    .from("finance_files")
+    .upsert(fileToRow(userId, f) as never, { onConflict: "user_id,id" });
+  if (error) throw new Error(error.message);
 }
 
 export async function deleteFile(userId: string, id: string) {
@@ -188,7 +225,7 @@ export async function deleteFile(userId: string, id: string) {
     .delete()
     .eq("user_id", userId)
     .eq("id", id);
-  if (error) throw error;
+  if (error) throw new Error(error.message);
 }
 
 export async function fetchPrefs(userId: string) {
@@ -197,7 +234,7 @@ export async function fetchPrefs(userId: string) {
     .select("goal, settings, layout")
     .eq("user_id", userId)
     .maybeSingle();
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return (data ?? null) as { goal: unknown; settings: unknown; layout: unknown } | null;
 }
 
@@ -207,6 +244,6 @@ export async function savePrefs(
 ) {
   const { error } = await supabase
     .from("finance_prefs")
-    .upsert({ user_id: userId, ...patch } as never);
-  if (error) throw error;
+    .upsert({ user_id: userId, ...patch } as never, { onConflict: "user_id" });
+  if (error) throw new Error(error.message);
 }

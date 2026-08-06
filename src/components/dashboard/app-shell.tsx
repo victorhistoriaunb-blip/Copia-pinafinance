@@ -3,10 +3,6 @@ import { Link } from "@tanstack/react-router";
 import { motion } from "motion/react";
 import {
   BarChart3,
-  CalendarDays,
-  CalendarRange,
-  Calendar,
-  CalendarClock,
   LayoutGrid,
   LayoutDashboard,
   FileBarChart,
@@ -39,11 +35,7 @@ function useNavItems() {
     { label: "Painéis", icon: LayoutDashboard, to: "/paineis" as const },
     { label: settings.labels.contas, icon: Wallet, to: "/contas" as const },
     { label: "Importar Planilhas", icon: Upload, to: "/importar" as const },
-    { label: "Dia", icon: CalendarDays, to: "/dia" as const },
-    { label: "Semana", icon: CalendarRange, to: "/semana" as const },
-    { label: "Mês", icon: Calendar, to: "/mes" as const },
-    { label: "Ano", icon: CalendarClock, to: "/ano" as const },
-    { label: "Categorias", icon: BarChart3, to: "/categorias" as const },
+    { label: "Análise", icon: BarChart3, to: "/analise" as const },
     { label: settings.labels.relatorios, icon: FileBarChart, to: "/relatorios" as const },
     { label: settings.labels.metas, icon: Target, to: "/metas" as const },
     { label: "Como usar", icon: BookOpen, to: "/como-usar" as const },
