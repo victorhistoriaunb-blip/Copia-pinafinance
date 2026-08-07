@@ -1,12 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   BookOpen,
+  FileDown,
   LayoutDashboard,
+  LifeBuoy,
   Settings,
   Target,
   Upload,
   Wallet,
 } from "lucide-react";
+
 import { Page } from "@/components/dashboard/page";
 import { Panel } from "@/components/dashboard/charts";
 
