@@ -1,12 +1,22 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Download, LayoutGrid, List, Search } from "lucide-react";
+import { LayoutGrid, List, Search } from "lucide-react";
 import { useFinance } from "@/lib/finance-store";
-import { availableMonths, brl, fullMonthLabel, monthKey, totals } from "@/lib/analytics";
+import {
+  availableMonths,
+  brl,
+  categoriesOf,
+  fullMonthLabel,
+  monthKey,
+  totals,
+} from "@/lib/analytics";
+import { STATUS_LABEL } from "@/lib/finance.types";
 import { Page, Select } from "@/components/dashboard/page";
+import { ExportMenu } from "@/components/dashboard/export-menu";
 import { Panel } from "@/components/dashboard/charts";
 import { TransactionsTable } from "@/components/dashboard/transactions-table";
 import { RecordCard } from "@/components/dashboard/record-card";
+
 
 export const Route = createFileRoute("/_gated/relatorios")({
   head: () => ({
