@@ -50,38 +50,61 @@ function ReportsPage() {
   );
   const t = totals(rows);
 
-  function exportCsv() {
-    const header = ["Data", "Tipo", "Categoria", "Descrição", "Conta", "Forma", "Valor", "Planilha"];
-    const body = rows.map((r) =>
-      [r.date, r.type, r.category, r.description, r.account, r.method, String(r.amount).replace(".", ","), r.fileName]
-        .map((v) => `"${String(v).replace(/"/g, '""')}"`)
-        .join(";"),
-    );
-    const blob = new Blob(["\uFEFF" + [header.join(";"), ...body].join("\n")], {
-      type: "text/csv;charset=utf-8",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "relatorio-pina-financas.csv";
-    a.click();
-    URL.revokeObjectURL(url);
-  }
+  const categoryRows = useMemo(() => categoriesOf(rows, "despesa"), [rows]);
+
+  const buildReport = () => ({
+    title: "Relatórios",
+    subtitle: `${rows.length} lançamento(s) · saldo ${brl(t.economia)}`,
+    filters: [
+      { label: "Período", value: period === "all" ? "Todos" : fullMonthLabel(period) },
+      { label: "Tipo", value: type === "all" ? "Todos" : type === "receita" ? "Receitas" : "Despesas" },
+      { label: "Categoria", value: category === "all" ? "Todas" : category },
+      { label: "Busca", value: term.trim() || "—" },
+      { label: "Visualização", value: view === "cards" ? "Cards" : "Tabela" },
+    ],
+    kpis: [
+      { label: "Receitas", value: brl(t.receitas) },
+      { label: "Despesas", value: brl(t.despesas) },
+      { label: "Saldo", value: brl(t.economia) },
+      { label: "Lançamentos", value: String(rows.length) },
+    ],
+    charts:
+      categoryRows.length > 0
+        ? [
+            {
+              title: "Despesas por categoria",
+              type: "bar" as const,
+              labels: categoryRows.slice(0, 10).map((c) => c.name || "Sem categoria"),
+              series: [{ name: "Total", values: categoryRows.slice(0, 10).map((c) => c.total) }],
+            },
+          ]
+        : [],
+    tables: [
+      {
+        title: "Lançamentos filtrados",
+        columns: ["Data", "Tipo", "Categoria", "Descrição", "Conta", "Situação", "Valor"],
+        rows: rows
+          .slice(0, 400)
+          .map((r) => [
+            r.date,
+            r.type === "receita" ? "Receita" : "Despesa",
+            r.category,
+            r.description,
+            r.account,
+            STATUS_LABEL[r.status],
+            brl(r.amount),
+          ]),
+      },
+    ],
+  });
 
   return (
     <Page
       title="Relatórios"
       subtitle={`${rows.length} lançamento(s) · saldo ${brl(t.economia)}`}
-      actions={
-        <button
-          type="button"
-          onClick={exportCsv}
-          className="inline-flex items-center gap-2 rounded-lg bg-[image:var(--gradient-primary)] px-3 py-2 text-xs font-semibold text-primary-foreground transition-all hover:brightness-110"
-        >
-          <Download className="size-3.5" /> Exportar CSV
-        </button>
-      }
+      actions={<ExportMenu build={buildReport} />}
     >
+
       <div className="flex flex-col gap-5">
         <Panel title="Filtros" description="Combine período, tipo, categoria e busca" delay={0.05}>
           <div className="flex flex-wrap items-center gap-3">
