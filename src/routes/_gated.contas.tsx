@@ -262,6 +262,46 @@ function ContasPage() {
 
   const chosen = rows.filter((r) => selected.includes(r.id));
 
+  const buildReport = () => {
+    const t = totals(rows);
+    return {
+      title: settings.labels.contas || "Contas",
+      subtitle: current ? `Cards do mês · ${fullMonthLabel(current)}` : "Todas as contas",
+      filters: [
+        { label: "Mês", value: current ? fullMonthLabel(current) : "Todos" },
+        {
+          label: "Situação",
+          value: statusFilter === "todas" ? "Todas" : (STATUS_LABEL[statusFilter as PaymentStatus] ?? statusFilter),
+        },
+      ],
+      kpis: [
+        { label: "Contas listadas", value: String(rows.length) },
+        { label: "Receitas", value: brl(t.receitas) },
+        { label: "Despesas", value: brl(t.despesas) },
+        {
+          label: "Em aberto",
+          value: brl(rows.filter((r) => r.status !== "pago").reduce((s, r) => s + remainingOf(r), 0)),
+        },
+      ],
+      charts: [],
+      tables: [
+        {
+          title: "Contas do período",
+          columns: ["Data", "Conta", "Vencimento", "Situação", "Valor", "Pago", "Restante"],
+          rows: rows.map((r) => [
+            r.date,
+            r.description || r.category,
+            r.dueDate,
+            STATUS_LABEL[r.status],
+            brl(r.amount),
+            brl(r.paidAmount),
+            brl(remainingOf(r)),
+          ]),
+        },
+      ],
+    };
+  };
+
   return (
     <Page
       title={settings.labels.contas}
@@ -283,10 +323,12 @@ function ContasPage() {
               ...STATUS_OPTIONS,
             ]}
           />
+          <ExportMenu build={buildReport} />
           <NewRecordButton label="Nova conta" />
         </div>
       }
     >
+
       {editing && <RecordDialog record={editing} onClose={() => setEditing(null)} />}
       {replicating && chosen.length > 0 && (
         <ReplicateDialog
