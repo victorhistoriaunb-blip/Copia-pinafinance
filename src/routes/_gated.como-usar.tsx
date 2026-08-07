@@ -214,6 +214,35 @@ function HowToPage() {
             ))}
           </div>
         </Panel>
+
+        <Panel
+          title="Solução de problemas"
+          description="O que fazer quando algo não sai como esperado"
+        >
+          <div className="flex items-start gap-3 pb-3 text-sm text-muted-foreground">
+            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary">
+              <LifeBuoy className="size-5" />
+            </span>
+            <p>
+              A maioria dos problemas vem do formato da planilha ou do filtro de período ativo.
+              Comece por estes casos antes de recadastrar qualquer informação.
+            </p>
+          </div>
+          <div className="flex flex-col gap-2">
+            {TROUBLESHOOTING.map((item) => (
+              <details
+                key={item.q}
+                className="group rounded-xl border border-border/60 px-4 py-3 transition-colors hover:border-primary/40"
+              >
+                <summary className="cursor-pointer list-none text-sm font-medium text-foreground">
+                  {item.q}
+                </summary>
+                <p className="mt-2 text-sm text-muted-foreground">{item.a}</p>
+              </details>
+            ))}
+          </div>
+        </Panel>
+
       </div>
     </Page>
   );
