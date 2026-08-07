@@ -3,9 +3,17 @@ import { createFileRoute } from "@tanstack/react-router";
 import { motion } from "motion/react";
 import { Copy, X } from "lucide-react";
 import { useFinance } from "@/lib/finance-store";
-import { STATUS_LABEL, type ExpenseKind, type PaymentStatus, type Transaction } from "@/lib/finance.types";
-import { availableMonths, fullMonthLabel, monthKey, shiftMonth } from "@/lib/analytics";
+import {
+  STATUS_LABEL,
+  remainingOf,
+  type ExpenseKind,
+  type PaymentStatus,
+  type Transaction,
+} from "@/lib/finance.types";
+import { availableMonths, brl, fullMonthLabel, monthKey, shiftMonth, totals } from "@/lib/analytics";
 import { Page, Select, NewRecordButton } from "@/components/dashboard/page";
+import { ExportMenu } from "@/components/dashboard/export-menu";
+
 import { RecordDialog } from "@/components/dashboard/record-form";
 import { RecordCard, DeletedRecords, KIND_OPTIONS, STATUS_OPTIONS } from "@/components/dashboard/record-card";
 import {
