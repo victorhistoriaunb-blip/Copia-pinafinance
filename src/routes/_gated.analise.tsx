@@ -163,6 +163,70 @@ function AnalisePage() {
     [transactions],
   );
 
+  const buildReport = () => ({
+    title: "Análise",
+    subtitle: periodLabel(mode, anchor, start, end),
+    filters: [
+      { label: "Período", value: periodLabel(mode, anchor, start, end) },
+      { label: "Intervalo", value: mode === "tudo" ? "Todos os lançamentos" : `${start} a ${end}` },
+      { label: "Categorias", value: catType === "despesa" ? "Despesas" : "Receitas" },
+    ],
+    kpis: [
+      { label: "Receitas", value: brl(t.receitas) },
+      { label: "Despesas", value: brl(t.despesas) },
+      { label: "Saldo do período", value: brl(t.economia) },
+      { label: "A pagar", value: brl(pendingTotal) },
+      { label: "Lançamentos", value: String(t.count) },
+    ],
+    charts: [
+      {
+        title: "Receitas x Despesas (12 meses)",
+        type: "bar" as const,
+        labels: monthsBack.map((m) => m.label),
+        series: [
+          { name: "Receitas", values: monthsBack.map((m) => m.receitas) },
+          { name: "Despesas", values: monthsBack.map((m) => m.despesas) },
+        ],
+      },
+      ...(categories.length > 0
+        ? [
+            {
+              title: `Participação por categoria (${catType === "despesa" ? "despesas" : "receitas"})`,
+              type: "pie" as const,
+              labels: categories.slice(0, 8).map((c) => c.name || "Sem categoria"),
+              series: [{ name: "Total", values: categories.slice(0, 8).map((c) => c.total) }],
+            },
+          ]
+        : []),
+    ],
+    tables: [
+      ...(categories.length > 0
+        ? [
+            {
+              title: "Detalhamento por categoria",
+              columns: ["Categoria", "Total", "Participação"],
+              rows: categories.map((c) => [
+                c.name || "Sem categoria",
+                brl(c.total),
+                `${c.share.toFixed(1)}%`,
+              ]),
+            },
+          ]
+        : []),
+      {
+        title: "Lançamentos do período",
+        columns: ["Data", "Descrição", "Categoria", "Situação", "Valor"],
+        rows: rows
+          .slice(0, 300)
+          .map((r) => [r.date, r.description, r.category, STATUS_LABEL[r.status], brl(r.amount)]),
+      },
+    ],
+    notes: [
+      `Pagos: ${byStatus.pago.count} · Parciais: ${byStatus.parcial.count} · Pendentes: ${byStatus.pendente.count}.`,
+      `Total em aberto no período: ${brl(pendingTotal)}.`,
+    ],
+  });
+
   return (
     <Page
       title="Análise"
@@ -199,9 +263,11 @@ function AnalisePage() {
               className="rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
             />
           )}
+          <ExportMenu build={buildReport} />
         </div>
       }
     >
+
       <div className="flex flex-col gap-5">
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
           <KpiCard index={0} icon={ArrowUpRight} title="Receitas" value={brl(t.receitas)} tone="success" />
