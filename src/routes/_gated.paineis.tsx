@@ -10,6 +10,8 @@ import {
   monthKey,
 } from "@/lib/analytics";
 import { Page, Select } from "@/components/dashboard/page";
+import { ExportMenu } from "@/components/dashboard/export-menu";
+
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import {
   CategoryBars,
