@@ -10,6 +10,8 @@ import {
   monthKey,
 } from "@/lib/analytics";
 import { Page, Select } from "@/components/dashboard/page";
+import { ExportMenu } from "@/components/dashboard/export-menu";
+
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import {
   CategoryBars,
@@ -193,6 +195,62 @@ function PanelsPage() {
 
   const visible = layout.filter((c) => c.visible);
 
+  const buildReport = () => ({
+    title: "Painéis",
+    subtitle: current ? `Painel personalizado · ${fullMonthLabel(current)}` : "Painel personalizado",
+    filters: [
+      { label: "Período", value: current ? fullMonthLabel(current) : "Sem dados" },
+      {
+        label: "Cards visíveis",
+        value: visible
+          .map((c) => DASHBOARD_CARDS.find((d) => d.id === c.id)?.label ?? c.id)
+          .join(", ") || "Nenhum",
+      },
+    ],
+    kpis: [
+      { label: "Saldo acumulado", value: brl(data.kpis.balance) },
+      { label: "Receitas do mês", value: brl(data.kpis.income) },
+      { label: "Despesas do mês", value: brl(data.kpis.expense) },
+      { label: "Economia do mês", value: brl(data.kpis.savings) },
+      { label: "Total pago", value: brl(paidTotal) },
+      { label: "Em aberto", value: brl(pendingTotal) },
+    ],
+    charts: [
+      {
+        title: "Receitas x Despesas (12 meses)",
+        type: "bar" as const,
+        labels: data.monthly.map((m) => m.label),
+        series: [
+          { name: "Receitas", values: data.monthly.map((m) => m.receitas) },
+          { name: "Despesas", values: data.monthly.map((m) => m.despesas) },
+        ],
+      },
+      ...(byKind.length > 0
+        ? [
+            {
+              title: "Despesas fixas x variáveis",
+              type: "pie" as const,
+              labels: byKind.map((k) => k.name),
+              series: [{ name: "Total", values: byKind.map((k) => k.total) }],
+            },
+          ]
+        : []),
+    ],
+    tables: [
+      {
+        title: "Próximos vencimentos",
+        columns: ["Vencimento", "Descrição", "Situação", "Valor"],
+        rows: upcoming.map((t) => [
+          t.dueDate,
+          t.description || t.category,
+          t.status,
+          brl(t.amount),
+        ]),
+      },
+    ],
+    notes: data.insights,
+  });
+
   return (
     <Page
       title="Painéis"
@@ -206,6 +264,7 @@ function PanelsPage() {
               options={months.map((m) => ({ value: m, label: fullMonthLabel(m) }))}
             />
           )}
+          <ExportMenu build={buildReport} />
           <button
             type="button"
             onClick={() => setEditing((v) => !v)}
@@ -216,6 +275,7 @@ function PanelsPage() {
         </div>
       }
     >
+
       <div className="flex flex-col gap-5">
         {editing && (
           <Panel title="Organizar cards" description="Mostre, oculte, redimensione e reordene">

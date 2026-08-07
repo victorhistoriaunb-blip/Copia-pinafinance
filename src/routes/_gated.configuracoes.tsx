@@ -249,7 +249,12 @@ function SettingsPage() {
             </span>
           )}
         </div>
+
+        <p className="pt-2 text-center text-xs text-muted-foreground/70">
+          Criado por Victor Souza de Aguiar.
+        </p>
       </form>
+
     </Page>
   );
 }
