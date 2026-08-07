@@ -59,20 +59,67 @@ function DashboardPage() {
   const spark = (key: "receitas" | "despesas" | "economia") =>
     monthly.slice(-8).map((m) => ({ v: m[key] }));
 
+  const buildReport = () => ({
+    title: "Dashboard",
+    subtitle: current ? `Visão geral · ${fullMonthLabel(current)}` : "Visão geral",
+    filters: [{ label: "Período", value: current ? fullMonthLabel(current) : "Sem dados" }],
+    kpis: [
+      { label: "Saldo acumulado", value: brl(kpis.balance), hint: "todas as fontes" },
+      { label: "Receitas do mês", value: brl(kpis.income) },
+      { label: "Despesas do mês", value: brl(kpis.expense) },
+      { label: "Economia do mês", value: brl(kpis.savings) },
+      { label: "Percentual gasto", value: `${kpis.spentPct.toFixed(1)}%` },
+      { label: "Progresso da meta", value: `${data.goal.progress.toFixed(0)}%`, hint: data.goal.name },
+    ],
+    charts: [
+      {
+        title: "Receitas x Despesas (12 meses)",
+        type: "bar" as const,
+        labels: monthly.map((m) => m.label),
+        series: [
+          { name: "Receitas", values: monthly.map((m) => m.receitas) },
+          { name: "Despesas", values: monthly.map((m) => m.despesas) },
+        ],
+      },
+      ...(categories.length > 0
+        ? [
+            {
+              title: "Distribuição por categoria",
+              type: "pie" as const,
+              labels: categories.slice(0, 8).map((c) => c.name || "Sem categoria"),
+              series: [{ name: "Despesas", values: categories.slice(0, 8).map((c) => c.total) }],
+            },
+          ]
+        : []),
+    ],
+    tables: [
+      {
+        title: "Lançamentos recentes",
+        columns: ["Data", "Descrição", "Categoria", "Forma", "Valor"],
+        rows: recent.map((t) => [t.date, t.description, t.category, t.method, brl(t.amount)]),
+      },
+    ],
+    notes: insights,
+  });
+
   return (
     <Page
       title="Dashboard"
       subtitle={current ? `Visão geral · ${fullMonthLabel(current)}` : "Visão geral"}
       actions={
-        months.length > 0 ? (
-          <Select
-            value={current}
-            onChange={setMonth}
-            options={months.map((m) => ({ value: m, label: fullMonthLabel(m) }))}
-          />
-        ) : null
+        <div className="flex flex-wrap items-center gap-2">
+          {months.length > 0 && (
+            <Select
+              value={current}
+              onChange={setMonth}
+              options={months.map((m) => ({ value: m, label: fullMonthLabel(m) }))}
+            />
+          )}
+          <ExportMenu build={buildReport} />
+        </div>
       }
     >
+
       <div className="flex flex-col gap-5">
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <KpiCard index={0} icon={Wallet} title="Saldo acumulado" value={brl(kpis.balance)} change={kpis.balanceChange} hint="todas as planilhas" tone="primary" spark={spark("economia")} />
