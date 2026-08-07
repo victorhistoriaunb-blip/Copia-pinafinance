@@ -22,6 +22,8 @@ import {
 } from "@/lib/analytics";
 import { remainingOf, STATUS_LABEL, type PaymentStatus } from "@/lib/finance.types";
 import { Page, Select } from "@/components/dashboard/page";
+import { ExportMenu } from "@/components/dashboard/export-menu";
+
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import {
   CategoryBars,
