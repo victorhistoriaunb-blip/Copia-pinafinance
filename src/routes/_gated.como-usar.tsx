@@ -74,8 +74,20 @@ const STEPS = [
     ],
   },
   {
+    icon: FileDown,
+    title: "5. Exporte relatórios",
+    to: "/relatorios" as const,
+    cta: "Ir para Relatórios",
+    body: [
+      "Em Dashboard, Painéis, Análise, Contas e Relatórios existe o botão “Exportar”, que gera o documento com exatamente o que está na tela (filtros, indicadores, gráficos e tabelas).",
+      "PDF: documento pronto para impressão, com a identidade do app no cabeçalho.",
+      "PowerPoint (.pptx): slides com gráficos e tabelas editáveis — abrem no PowerPoint, no Google Slides e no Canva.",
+      "CSV: dados brutos para abrir no Excel e continuar a análise.",
+    ],
+  },
+  {
     icon: Settings,
-    title: "5. Ajuste o sistema",
+    title: "6. Ajuste o sistema",
     to: "/configuracoes" as const,
     cta: "Ir para Configurações",
     body: [
@@ -99,14 +111,50 @@ const FAQ = [
     a: "Pode. O cadastro manual é completo e alimenta gráficos, relatórios e metas do mesmo jeito.",
   },
   {
+    q: "Preciso de um número mínimo de lançamentos?",
+    a: "Não. Com poucos dados os gráficos que ainda não têm informação suficiente exibem um aviso no lugar, e o restante do sistema continua funcionando normalmente.",
+  },
+  {
     q: "Como remover uma planilha importada?",
     a: "Em Importar Planilhas, use o ícone de lixeira do arquivo. Os lançamentos que vieram dele são removidos junto; os manuais permanecem.",
+  },
+  {
+    q: "Excluí uma conta sem querer. Dá para recuperar?",
+    a: "Sim. Registros excluídos vão para a área translúcida no fim da tela de Contas, onde você pode restaurar ou apagar em definitivo.",
+  },
+  {
+    q: "O arquivo exportado em PowerPoint funciona no Canva?",
+    a: "Sim. Os gráficos e tabelas são objetos nativos e editáveis, então o Canva e o Google Slides abrem o arquivo mantendo a edição.",
   },
   {
     q: "Esqueci minha senha, e agora?",
     a: "Na tela de entrada, escolha “Esqueci a senha”, informe o e-mail e siga o link enviado para definir uma nova senha.",
   },
 ];
+
+const TROUBLESHOOTING = [
+  {
+    q: "A planilha não importou ou veio com poucos lançamentos",
+    a: "Baixe o modelo base em Importar Planilhas e compare os cabeçalhos. Linhas totalmente vazias e abas de resumo são ignoradas; valores em texto (ex.: “R$ 1.200,00”) são convertidos automaticamente, mas células mescladas no cabeçalho podem atrapalhar a leitura.",
+  },
+  {
+    q: "As datas ficaram trocadas",
+    a: "Use o formato dia/mês/ano ou o formato de data nativo do Excel. Datas escritas por extenso não são reconhecidas e o lançamento fica sem período.",
+  },
+  {
+    q: "Os gráficos apareceram vazios",
+    a: "Verifique o filtro de período no topo da página: se não houver lançamentos naquele mês, os cards ficam sem dados. Selecione “Todos” ou outro mês.",
+  },
+  {
+    q: "Entrei em outro dispositivo e não vejo meus dados",
+    a: "Confirme que entrou com o mesmo e-mail. A sincronização acontece logo após o login; se a conexão cair no meio, atualize a página para recarregar da nuvem.",
+  },
+  {
+    q: "A exportação demorou ou não abriu",
+    a: "Arquivos com muitos lançamentos levam alguns segundos para serem gerados. Se o navegador bloquear o download, autorize downloads para este site e tente novamente.",
+  },
+];
+
 
 function HowToPage() {
   return (
