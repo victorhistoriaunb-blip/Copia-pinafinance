@@ -13,7 +13,9 @@ import {
 import { useFinance } from "@/lib/finance-store";
 import { availableMonths, brl, buildDashboard, fullMonthLabel } from "@/lib/analytics";
 import { Page, Select } from "@/components/dashboard/page";
+import { ExportMenu } from "@/components/dashboard/export-menu";
 import { KpiCard } from "@/components/dashboard/kpi-card";
+
 import {
   CategoryBars,
   CategoryDonut,
