@@ -453,7 +453,7 @@ function ContasPage() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 24 }}
             transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-            className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 px-4 py-3 backdrop-blur-sm sm:left-[var(--sidebar-w,0px)]"
+            className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 px-4 py-3 backdrop-blur-sm lg:left-64"
           >
             <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-3">
               <span className="text-sm font-medium text-foreground">

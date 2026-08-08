@@ -93,7 +93,7 @@ export function RecordCard({
             checked={!!selected}
             onChange={(e) => onSelect(e.target.checked)}
             aria-label={`Selecionar ${t.description}`}
-            className="mt-1 size-4 shrink-0 accent-[var(--color-primary)]"
+            className="mt-1 size-5 shrink-0 accent-[var(--color-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
         )}
         <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-2">
@@ -247,7 +247,7 @@ export function RecordCard({
 
 /** Área da lixeira: cards translúcidos com opção de desfazer a exclusão. */
 export function DeletedRecords() {
-  const { deletedRecords, restoreRecord, purgeRecord, purgeAllDeleted } = useFinance();
+  const { deletedRecords, restoreRecord, restoreMany, purgeRecord, purgeAllDeleted } = useFinance();
   if (deletedRecords.length === 0) return null;
 
   return (
@@ -261,13 +261,22 @@ export function DeletedRecords() {
             {deletedRecords.length} registro(s) na lixeira — restaure se apagou por engano.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => void purgeAllDeleted()}
-          className="ml-auto rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-destructive/60 hover:text-destructive"
-        >
-          Esvaziar lixeira
-        </button>
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => void restoreMany(deletedRecords.map((r) => r.id))}
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border px-3 text-xs font-semibold text-foreground transition-colors hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <RotateCcw className="size-3.5" /> Restaurar todos
+          </button>
+          <button
+            type="button"
+            onClick={() => void purgeAllDeleted()}
+            className="h-9 rounded-lg border border-border px-3 text-xs text-muted-foreground transition-colors hover:border-destructive/60 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Esvaziar lixeira
+          </button>
+        </div>
       </header>
 
       <div className="grid gap-3 xl:grid-cols-2">
