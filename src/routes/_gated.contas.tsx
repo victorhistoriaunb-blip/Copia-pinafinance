@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { motion } from "motion/react";
-import { Copy, X } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import { Copy, Trash2, X } from "lucide-react";
 import { useFinance } from "@/lib/finance-store";
 import {
   STATUS_LABEL,
@@ -251,7 +251,7 @@ function ReplicateDialog({
 }
 
 function ContasPage() {
-  const { transactions, settings } = useFinance();
+  const { transactions, settings, deleteMany } = useFinance();
   const months = useMemo(() => availableMonths(transactions), [transactions]);
   const [month, setMonth] = useState<string>("");
   const current = month && months.includes(month) ? month : (months[0] ?? "");
@@ -259,6 +259,8 @@ function ContasPage() {
   const [selected, setSelected] = useState<string[]>([]);
   const [replicating, setReplicating] = useState(false);
   const [editing, setEditing] = useState<Transaction | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const rows = useMemo(
     () =>
@@ -349,23 +351,73 @@ function ContasPage() {
         />
       )}
 
-      <div className="flex flex-col gap-4">
+      {confirmingDelete && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, y: 16, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            className="panel w-full max-w-sm p-6"
+          >
+            <h2 className="text-base font-semibold tracking-tight">Excluir contas selecionadas?</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {selected.length} conta(s) irão para a lixeira e poderão ser restauradas depois, na
+              área translúcida no fim desta página.
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={() => setConfirmingDelete(false)}
+                className="h-10 rounded-xl border border-border px-4 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={async () => {
+                  setDeleting(true);
+                  await deleteMany(selected);
+                  setDeleting(false);
+                  setConfirmingDelete(false);
+                  setSelected([]);
+                }}
+                className="h-10 rounded-xl bg-destructive px-5 text-sm font-semibold text-destructive-foreground transition-all hover:brightness-110 disabled:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {deleting ? "Excluindo…" : "Excluir selecionadas"}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      <div className="flex flex-col gap-4 pb-20">
         <div className="panel flex flex-wrap items-center gap-3 px-4 py-3 text-xs text-muted-foreground">
-          <label className="inline-flex items-center gap-2">
+          <label className="inline-flex min-h-10 items-center gap-2">
             <input
               type="checkbox"
               checked={rows.length > 0 && selected.length === rows.length}
               onChange={(e) => setSelected(e.target.checked ? rows.map((r) => r.id) : [])}
               className="size-4 accent-[var(--color-primary)]"
             />
-            Selecionar todas
+            Selecionar todas (respeita os filtros ativos)
           </label>
+          {selected.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setSelected([])}
+              className="text-xs font-medium text-muted-foreground underline-offset-2 transition-colors hover:text-foreground hover:underline"
+            >
+              Limpar seleção
+            </button>
+          )}
           <span>{selected.length} selecionada(s) de {rows.length}</span>
           <button
             type="button"
             disabled={selected.length === 0}
             onClick={() => setReplicating(true)}
-            className="ml-auto inline-flex h-9 items-center gap-2 rounded-xl border border-border px-4 text-xs font-semibold text-foreground transition-colors hover:border-primary/60 disabled:opacity-50"
+            className="ml-auto inline-flex h-9 items-center gap-2 rounded-xl border border-border px-4 text-xs font-semibold text-foreground transition-colors hover:border-primary/60 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <Copy className="size-3.5" /> Replicar
           </button>
@@ -373,7 +425,7 @@ function ContasPage() {
 
         {rows.length === 0 ? (
           <p className="panel py-10 text-center text-sm text-muted-foreground">
-            Nenhuma conta neste período.
+            Nenhuma conta neste período. Ajuste o filtro de mês ou situação, ou cadastre uma nova conta.
           </p>
         ) : (
           <div className="grid gap-3 xl:grid-cols-2">
@@ -393,6 +445,48 @@ function ContasPage() {
 
         <DeletedRecords />
       </div>
+
+      <AnimatePresence>
+        {selected.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 24 }}
+            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 px-4 py-3 backdrop-blur-sm sm:left-[var(--sidebar-w,0px)]"
+          >
+            <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-3">
+              <span className="text-sm font-medium text-foreground">
+                {selected.length} conta(s) selecionada(s)
+              </span>
+              <div className="ml-auto flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setReplicating(true)}
+                  className="inline-flex h-10 items-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold text-foreground transition-colors hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Copy className="size-4" /> Replicar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmingDelete(true)}
+                  className="inline-flex h-10 items-center gap-2 rounded-xl border border-destructive/50 px-4 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Trash2 className="size-4" /> Excluir selecionados
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelected([])}
+                  aria-label="Limpar seleção"
+                  className="grid size-10 place-items-center rounded-xl border border-border text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </Page>
   );
 }
