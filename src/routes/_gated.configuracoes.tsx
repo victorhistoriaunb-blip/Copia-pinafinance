@@ -49,6 +49,52 @@ const ACCENTS: { id: AppSettings["accent"]; label: string; color: string }[] = [
 const inputClass =
   "w-full rounded-xl border border-input bg-background/60 px-3 py-2.5 text-sm text-foreground outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-ring/35";
 
+const FONT_OPTIONS: { id: FontChoice; label: string }[] = [
+  { id: "sistema", label: "Sistema" },
+  { id: "inter", label: "Inter" },
+  { id: "manrope", label: "Manrope" },
+  { id: "sora", label: "Sora" },
+  { id: "ibm-plex", label: "IBM Plex Sans" },
+  { id: "lora", label: "Lora" },
+];
+
+const FONT_STACKS: Record<FontChoice, string> = {
+  sistema: "ui-sans-serif, system-ui, sans-serif",
+  inter: "'Inter', sans-serif",
+  manrope: "'Manrope', sans-serif",
+  sora: "'Sora', sans-serif",
+  "ibm-plex": "'IBM Plex Sans', sans-serif",
+  lora: "'Lora', serif",
+};
+
+const BLOCK_KIND_LABEL: Record<CustomBlockKind, string> = {
+  texto: "Texto livre",
+  kpis: "Indicadores (KPIs)",
+  fluxo: "Gráfico de fluxo",
+  categorias: "Categorias",
+  tabela: "Tabela de lançamentos",
+  cards: "Cards de registros",
+  vencimentos: "Vencimentos",
+  insights: "Insights",
+  meta: "Meta financeira",
+};
+
+const BLOCK_KINDS: CustomBlockKind[] = [
+  "texto",
+  "kpis",
+  "fluxo",
+  "categorias",
+  "tabela",
+  "cards",
+  "vencimentos",
+  "insights",
+  "meta",
+];
+
+function uid() {
+  return Math.random().toString(36).slice(2, 10);
+}
+
 function Field({
   label,
   value,
