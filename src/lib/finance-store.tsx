@@ -18,6 +18,9 @@ import {
   fetchAllRecords,
   fetchFiles,
   fetchPrefs,
+  fetchAgenda,
+  upsertEvent,
+  deleteEvent,
   savePrefs,
   upsertFile,
   upsertRecords,
@@ -26,7 +29,9 @@ import {
 import {
   DEFAULT_DASHBOARD_LAYOUT,
   DEFAULT_SETTINGS,
+  normalizeSettings,
   paymentStatusOf,
+  type AgendaEvent,
   type AppSettings,
   type DashboardCardPref,
   type Goal,
@@ -68,6 +73,13 @@ type Ctx = {
   restoreRecord: (id: string) => Promise<void>;
   purgeRecord: (id: string) => Promise<void>;
   purgeAllDeleted: () => Promise<void>;
+  /** Exclusão em massa (vai para a lixeira). */
+  deleteMany: (ids: string[]) => Promise<void>;
+  restoreMany: (ids: string[]) => Promise<void>;
+  /** Compromissos da agenda vinculados à conta. */
+  agenda: AgendaEvent[];
+  saveEvent: (event: AgendaEvent) => Promise<void>;
+  removeEvent: (id: string) => Promise<void>;
 };
 
 const FinanceContext = createContext<Ctx | null>(null);
@@ -119,6 +131,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
   const [goal, setGoal] = useState<Goal>(DEFAULT_GOAL);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [layout, setLayout] = useState<DashboardCardPref[]>(DEFAULT_DASHBOARD_LAYOUT);
+  const [agenda, setAgenda] = useState<AgendaEvent[]>([]);
   const recordsRef = useRef<Transaction[]>([]);
   recordsRef.current = records;
 
@@ -142,12 +155,14 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     setReady(false);
     (async () => {
       try {
-        const [cloudRecords, cloudFiles, prefs] = await Promise.all([
+        const [cloudRecords, cloudFiles, prefs, cloudAgenda] = await Promise.all([
           fetchAllRecords(userId),
           fetchFiles(userId),
           fetchPrefs(userId),
+          fetchAgenda(userId).catch(() => [] as AgendaEvent[]),
         ]);
         if (!alive) return;
+        setAgenda(cloudAgenda);
 
         let finalRecords = cloudRecords.map(normalizeRecord);
         let finalFiles = cloudFiles;
@@ -195,12 +210,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         setRecords(finalRecords);
         setFileMetas(finalFiles);
         setGoal(finalGoal);
-        if (finalSettings)
-          setSettings({
-            ...DEFAULT_SETTINGS,
-            ...finalSettings,
-            labels: { ...DEFAULT_SETTINGS.labels, ...(finalSettings.labels ?? {}) },
-          });
+        setSettings(normalizeSettings(finalSettings));
         if (finalLayout && finalLayout.length > 0) {
           const known = new Map(finalLayout.map((c) => [c.id, c]));
           setLayout([
@@ -393,6 +403,58 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     await run(() => deleteRecords(userId, ids));
   }, [userId, run]);
 
+  const deleteMany = useCallback<Ctx["deleteMany"]>(
+    async (ids) => {
+      const stamp = new Date().toISOString();
+      const set = new Set(ids);
+      const next = recordsRef.current
+        .filter((r) => set.has(r.id) && !r.deletedAt)
+        .map((r) => ({ ...r, deletedAt: stamp }));
+      if (next.length === 0) return;
+      setRecords((prev) => prev.map((r) => (set.has(r.id) && !r.deletedAt ? { ...r, deletedAt: stamp } : r)));
+      await run(() => upsertRecords(userId, next));
+    },
+    [userId, run],
+  );
+
+  const restoreMany = useCallback<Ctx["restoreMany"]>(
+    async (ids) => {
+      const set = new Set(ids);
+      const next = recordsRef.current
+        .filter((r) => set.has(r.id) && r.deletedAt)
+        .map(({ deletedAt: _drop, ...rest }) => rest as Transaction);
+      if (next.length === 0) return;
+      setRecords((prev) =>
+        prev.map((r) => {
+          if (!set.has(r.id) || !r.deletedAt) return r;
+          const { deletedAt: _d, ...rest } = r;
+          return rest as Transaction;
+        }),
+      );
+      await run(() => upsertRecords(userId, next));
+    },
+    [userId, run],
+  );
+
+  const saveEvent = useCallback<Ctx["saveEvent"]>(
+    async (event) => {
+      setAgenda((prev) => {
+        const exists = prev.some((e) => e.id === event.id);
+        return exists ? prev.map((e) => (e.id === event.id ? event : e)) : [...prev, event];
+      });
+      await run(() => upsertEvent(userId, event));
+    },
+    [userId, run],
+  );
+
+  const removeEvent = useCallback<Ctx["removeEvent"]>(
+    async (id) => {
+      setAgenda((prev) => prev.filter((e) => e.id !== id));
+      await run(() => deleteEvent(userId, id));
+    },
+    [userId, run],
+  );
+
   const byDateDesc = (a: Transaction, b: Transaction) =>
     a.date < b.date ? 1 : a.date > b.date ? -1 : 0;
 
@@ -442,6 +504,11 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       restoreRecord,
       purgeRecord,
       purgeAllDeleted,
+      deleteMany,
+      restoreMany,
+      agenda,
+      saveEvent,
+      removeEvent,
     }),
     [
       ready,
@@ -466,6 +533,11 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       restoreRecord,
       purgeRecord,
       purgeAllDeleted,
+      deleteMany,
+      restoreMany,
+      agenda,
+      saveEvent,
+      removeEvent,
     ],
   );
 

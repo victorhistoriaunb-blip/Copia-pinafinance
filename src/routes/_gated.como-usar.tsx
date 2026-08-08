@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   BookOpen,
+  CalendarDays,
   FileDown,
   LayoutDashboard,
   LifeBuoy,
@@ -53,6 +54,7 @@ const STEPS = [
       "Use “Novo registro” para lançar manualmente, com abas Principal e Detalhamento (observações, histórico, links e comentários).",
       "Na lista e nos cards, clique sobre qualquer campo para editar em linha: data, conta, despesa, vencimento, situação e valor.",
       "Use “Copiar informações” para levar os dados de uma conta para onde quiser e a replicação para repetir contas em outros meses.",
+      "Marque os checkboxes dos cards (ou “Selecionar todas”) para excluir várias contas de uma vez — a barra fixa no rodapé confirma antes de mover tudo para a lixeira.",
     ],
   },
   {
@@ -89,12 +91,23 @@ const STEPS = [
     ],
   },
   {
+    icon: CalendarDays,
+    title: "6. Organize a agenda",
+    to: "/agenda" as const,
+    cta: "Ir para Agenda",
+    body: [
+      "A Agenda mostra um calendário com compromissos e vencimentos de contas do mês, tudo em um só lugar.",
+      "Clique em um dia para ver os detalhes e cadastrar novos compromissos sem sair do calendário.",
+    ],
+  },
+  {
     icon: Settings,
-    title: "6. Ajuste o sistema",
+    title: "7. Ajuste o sistema",
     to: "/configuracoes" as const,
     cta: "Ir para Configurações",
     body: [
-      "Personalize nome do app, saudação, cor de destaque, densidade da interface e os rótulos do menu.",
+      "Personalize nome do app, saudação, cor de destaque, densidade da interface, tipografia e os rótulos e a ordem das abas do menu.",
+      "Em Relatórios, defina o cliente, o template e a logo própria que aparecem nos documentos exportados.",
       "Tudo é salvo na sua conta e volta igual em qualquer dispositivo.",
     ],
   },
@@ -123,7 +136,19 @@ const FAQ = [
   },
   {
     q: "Excluí uma conta sem querer. Dá para recuperar?",
-    a: "Sim. Registros excluídos vão para a área translúcida no fim da tela de Contas, onde você pode restaurar ou apagar em definitivo.",
+    a: "Sim. Registros excluídos vão para a área translúcida no fim da tela de Contas, onde você pode restaurar um a um ou usar “Restaurar todos”, ou apagar em definitivo.",
+  },
+  {
+    q: "Como excluo várias contas de uma vez?",
+    a: "Em Contas, marque o checkbox dos cards desejados (ou “Selecionar todas”, que respeita os filtros ativos). A barra fixa no rodapé mostra a quantidade selecionada e o botão “Excluir selecionados”, com confirmação antes de mover tudo para a lixeira.",
+  },
+  {
+    q: "Dá para personalizar os relatórios exportados?",
+    a: "Sim. Em Configurações, você pode definir o nome do cliente, escolher o template do documento e enviar sua própria logo para aparecer nos relatórios exportados.",
+  },
+  {
+    q: "Posso mudar a ordem das abas do menu?",
+    a: "Sim. Em Configurações é possível personalizar os rótulos, a ordem das abas do menu e a tipografia usada na interface.",
   },
   {
     q: "O arquivo exportado em PowerPoint funciona no Canva?",

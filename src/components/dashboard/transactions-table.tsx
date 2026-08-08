@@ -40,7 +40,7 @@ export function TransactionsTable({
   }
 
   return (
-    <div className="-mx-2 max-h-[520px] overflow-auto">
+    <div className="-mx-2 max-h-[520px] min-w-0 overflow-auto">
       {editing && <RecordDialog record={editing} onClose={() => setEditing(null)} />}
       <table className="w-full min-w-[820px] text-left text-sm">
         <thead className="sticky top-0 z-10 bg-card">

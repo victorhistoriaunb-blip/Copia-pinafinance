@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { motion } from "motion/react";
 import {
@@ -15,6 +15,7 @@ import { useFinance } from "@/lib/finance-store";
 import { Page } from "@/components/dashboard/page";
 import { Panel } from "@/components/dashboard/charts";
 import { downloadTemplate, TEMPLATE_HEADERS } from "@/lib/xlsx-template";
+import { parseFile } from "@/lib/xlsx-parse";
 
 export const Route = createFileRoute("/_gated/importar")({
   head: () => ({
@@ -41,34 +42,67 @@ export const Route = createFileRoute("/_gated/importar")({
 const fmtSize = (bytes: number) =>
   bytes > 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
 
+type Preview = {
+  file: File;
+  status: "lendo" | "pronto" | "erro";
+  error?: string;
+  rowCount?: number;
+};
+
+function readErrorMessage(err: unknown): string {
+  if (err instanceof Error && err.message) return err.message;
+  return "Não foi possível ler este arquivo. Verifique se ele não está corrompido ou protegido por senha.";
+}
+
 function ImportPage() {
   const { files, importFiles, removeFile, clearAll, transactions } = useFinance();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [pending, setPending] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<Preview[]>([]);
   const [results, setResults] = useState<{ name: string; error?: string }[]>([]);
+
+  /** Confere cada arquivo em paralelo, sem travar a tela quando um falhar. */
+  const checkFile = useCallback((file: File) => {
+    parseFile(file)
+      .then((wb) => {
+        setPreviews((prev) =>
+          prev.map((p) =>
+            p.file === file ? { ...p, status: "pronto", rowCount: wb.transactions.length } : p,
+          ),
+        );
+      })
+      .catch((err) => {
+        setPreviews((prev) =>
+          prev.map((p) => (p.file === file ? { ...p, status: "erro", error: readErrorMessage(err) } : p)),
+        );
+      });
+  }, []);
 
   /** Só prepara a fila — a gravação acontece no "Confirmar importação". */
   function stage(list: FileList | null) {
     if (!list || list.length === 0) return;
     setResults([]);
-    setPending((prev) => {
-      const map = new Map(prev.map((f) => [f.name, f]));
-      for (const f of Array.from(list)) map.set(f.name, f);
-      return Array.from(map.values());
-    });
+    const incoming = Array.from(list);
+    setPreviews((prev) => [
+      ...prev.filter((p) => !incoming.some((f) => f.name === p.file.name)),
+      ...incoming.map((f) => ({ file: f, status: "lendo" as const })),
+    ]);
+    for (const f of incoming) checkFile(f);
     if (inputRef.current) inputRef.current.value = "";
   }
 
+  const hasErrors = previews.some((p) => p.status === "erro");
+  const readableFiles = previews.filter((p) => p.status !== "erro").map((p) => p.file);
+
   async function confirmImport() {
-    if (pending.length === 0) return;
+    if (readableFiles.length === 0) return;
     setBusy(true);
     setResults([]);
     try {
-      const res = await importFiles(pending);
+      const res = await importFiles(readableFiles);
       setResults(res);
-      setPending([]);
+      setPreviews((prev) => prev.filter((p) => p.status === "erro"));
     } finally {
       setBusy(false);
     }
@@ -163,48 +197,74 @@ function ImportPage() {
           </button>
         </Panel>
 
-        {pending.length > 0 && (
+        {previews.length > 0 && (
           <Panel
             title="Arquivos selecionados"
             description="Revise antes de gravar os lançamentos na sua conta"
           >
             <ul className="flex flex-col gap-2">
-              {pending.map((f) => (
+              {previews.map((p) => (
                 <li
-                  key={f.name}
+                  key={p.file.name}
                   className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/70 px-3 py-2 text-sm"
                 >
-                  <span className="flex min-w-0 items-center gap-2">
+                  <span className="flex min-w-0 flex-1 items-center gap-2">
                     <FileSpreadsheet className="size-4 shrink-0 text-primary" />
-                    <span className="truncate text-foreground">{f.name}</span>
-                    <span className="shrink-0 text-xs text-muted-foreground">{fmtSize(f.size)}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-foreground">{p.file.name}</span>
+                      <span className="block text-xs">
+                        {p.status === "lendo" && (
+                          <span className="inline-flex items-center gap-1 text-muted-foreground">
+                            <Loader2 className="size-3 animate-spin" /> Lendo arquivo…
+                          </span>
+                        )}
+                        {p.status === "pronto" && (
+                          <span className="inline-flex items-center gap-1 text-success">
+                            <CheckCircle2 className="size-3" /> Pronto · {p.rowCount ?? 0} lançamento(s) reconhecidos
+                          </span>
+                        )}
+                        {p.status === "erro" && (
+                          <span className="inline-flex items-center gap-1 text-destructive">
+                            <AlertTriangle className="size-3 shrink-0" /> {p.error}
+                          </span>
+                        )}
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-xs text-muted-foreground">{fmtSize(p.file.size)}</span>
                   </span>
                   <button
                     type="button"
-                    onClick={() => setPending((prev) => prev.filter((x) => x.name !== f.name))}
-                    aria-label={`Remover ${f.name} da fila`}
-                    className="grid size-8 place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:border-destructive/50 hover:text-destructive"
+                    onClick={() => setPreviews((prev) => prev.filter((x) => x.file.name !== p.file.name))}
+                    aria-label={`Remover ${p.file.name} da fila`}
+                    className="grid size-10 shrink-0 place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:border-destructive/50 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <Trash2 className="size-3.5" />
                   </button>
                 </li>
               ))}
             </ul>
+            {hasErrors && (
+              <p className="mt-3 flex items-center gap-2 rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning">
+                <Info className="size-3.5 shrink-0" />
+                Arquivos com erro não serão importados agora — remova-os ou corrija e envie novamente. Os demais
+                podem ser confirmados normalmente.
+              </p>
+            )}
             <div className="mt-4 flex flex-wrap gap-3">
               <button
                 type="button"
-                disabled={busy}
+                disabled={busy || readableFiles.length === 0}
                 onClick={() => void confirmImport()}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[image:var(--gradient-primary)] px-5 text-sm font-semibold text-primary-foreground transition-all hover:brightness-110 disabled:opacity-60"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[image:var(--gradient-primary)] px-5 text-sm font-semibold text-primary-foreground transition-all hover:brightness-110 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 {busy ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
-                Confirmar importação
+                Confirmar importação{readableFiles.length > 0 ? ` (${readableFiles.length})` : ""}
               </button>
               <button
                 type="button"
                 disabled={busy}
-                onClick={() => setPending([])}
-                className="inline-flex h-11 items-center rounded-xl border border-border px-5 text-sm font-semibold text-foreground transition-colors hover:border-destructive/50 hover:text-destructive"
+                onClick={() => setPreviews([])}
+                className="inline-flex h-11 items-center rounded-xl border border-border px-5 text-sm font-semibold text-foreground transition-colors hover:border-destructive/50 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 Cancelar
               </button>

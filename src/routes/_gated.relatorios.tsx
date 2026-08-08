@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { LayoutGrid, List, Search } from "lucide-react";
+import { LayoutGrid, List, Search, Settings2 } from "lucide-react";
 import { useFinance } from "@/lib/finance-store";
 import {
   availableMonths,
@@ -13,6 +13,7 @@ import {
 import { STATUS_LABEL } from "@/lib/finance.types";
 import { Page, Select } from "@/components/dashboard/page";
 import { ExportMenu } from "@/components/dashboard/export-menu";
+import { ReportSettingsPanel } from "@/components/dashboard/report-settings";
 import { Panel } from "@/components/dashboard/charts";
 import { TransactionsTable } from "@/components/dashboard/transactions-table";
 import { RecordCard } from "@/components/dashboard/record-card";
@@ -34,7 +35,8 @@ export const Route = createFileRoute("/_gated/relatorios")({
 });
 
 function ReportsPage() {
-  const { transactions } = useFinance();
+  const { transactions, settings } = useFinance();
+  const [customize, setCustomize] = useState(false);
   const months = useMemo(() => availableMonths(transactions), [transactions]);
   const categories = useMemo(
     () => [...new Set(transactions.map((t) => t.category))].sort(),
@@ -63,7 +65,7 @@ function ReportsPage() {
   const categoryRows = useMemo(() => categoriesOf(rows, "despesa"), [rows]);
 
   const buildReport = () => ({
-    title: "Relatórios",
+    title: settings.report.reportTitle.trim() || "Relatórios",
     subtitle: `${rows.length} lançamento(s) · saldo ${brl(t.economia)}`,
     filters: [
       { label: "Período", value: period === "all" ? "Todos" : fullMonthLabel(period) },
@@ -110,10 +112,22 @@ function ReportsPage() {
 
   return (
     <Page
-      title="Relatórios"
+      title={settings.report.reportTitle.trim() || "Relatórios"}
       subtitle={`${rows.length} lançamento(s) · saldo ${brl(t.economia)}`}
-      actions={<ExportMenu build={buildReport} />}
+      actions={
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setCustomize(true)}
+            className="inline-flex h-10 items-center gap-2 rounded-xl border border-border px-3 text-xs font-semibold text-foreground transition-colors hover:border-primary/60"
+          >
+            <Settings2 className="size-3.5" /> Personalizar
+          </button>
+          <ExportMenu build={buildReport} />
+        </div>
+      }
     >
+      <ReportSettingsPanel open={customize} onClose={() => setCustomize(false)} />
 
       <div className="flex flex-col gap-5">
         <Panel title="Filtros" description="Combine período, tipo, categoria e busca" delay={0.05}>

@@ -13,6 +13,7 @@ import { Route as GatedRouteImport } from './routes/_gated'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as GatedIndexRouteImport } from './routes/_gated.index'
+import { Route as GatedAgendaRouteImport } from './routes/_gated.agenda'
 import { Route as GatedAnaliseRouteImport } from './routes/_gated.analise'
 import { Route as GatedComoUsarRouteImport } from './routes/_gated.como-usar'
 import { Route as GatedConfiguracoesRouteImport } from './routes/_gated.configuracoes'
@@ -21,6 +22,7 @@ import { Route as GatedImportarRouteImport } from './routes/_gated.importar'
 import { Route as GatedMetasRouteImport } from './routes/_gated.metas'
 import { Route as GatedPaineisRouteImport } from './routes/_gated.paineis'
 import { Route as GatedRelatoriosRouteImport } from './routes/_gated.relatorios'
+import { Route as GatedPaginaIdRouteImport } from './routes/_gated.pagina.$id'
 
 const GatedRoute = GatedRouteImport.update({
   id: '/_gated',
@@ -39,6 +41,11 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
 const GatedIndexRoute = GatedIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => GatedRoute,
+} as any)
+const GatedAgendaRoute = GatedAgendaRouteImport.update({
+  id: '/agenda',
+  path: '/agenda',
   getParentRoute: () => GatedRoute,
 } as any)
 const GatedAnaliseRoute = GatedAnaliseRouteImport.update({
@@ -81,11 +88,17 @@ const GatedRelatoriosRoute = GatedRelatoriosRouteImport.update({
   path: '/relatorios',
   getParentRoute: () => GatedRoute,
 } as any)
+const GatedPaginaIdRoute = GatedPaginaIdRouteImport.update({
+  id: '/pagina/$id',
+  path: '/pagina/$id',
+  getParentRoute: () => GatedRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof GatedIndexRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/agenda': typeof GatedAgendaRoute
   '/analise': typeof GatedAnaliseRoute
   '/como-usar': typeof GatedComoUsarRoute
   '/configuracoes': typeof GatedConfiguracoesRoute
@@ -94,10 +107,12 @@ export interface FileRoutesByFullPath {
   '/metas': typeof GatedMetasRoute
   '/paineis': typeof GatedPaineisRoute
   '/relatorios': typeof GatedRelatoriosRoute
+  '/pagina/$id': typeof GatedPaginaIdRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/agenda': typeof GatedAgendaRoute
   '/analise': typeof GatedAnaliseRoute
   '/como-usar': typeof GatedComoUsarRoute
   '/configuracoes': typeof GatedConfiguracoesRoute
@@ -107,12 +122,14 @@ export interface FileRoutesByTo {
   '/paineis': typeof GatedPaineisRoute
   '/relatorios': typeof GatedRelatoriosRoute
   '/': typeof GatedIndexRoute
+  '/pagina/$id': typeof GatedPaginaIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_gated': typeof GatedRouteWithChildren
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/_gated/agenda': typeof GatedAgendaRoute
   '/_gated/analise': typeof GatedAnaliseRoute
   '/_gated/como-usar': typeof GatedComoUsarRoute
   '/_gated/configuracoes': typeof GatedConfiguracoesRoute
@@ -122,6 +139,7 @@ export interface FileRoutesById {
   '/_gated/paineis': typeof GatedPaineisRoute
   '/_gated/relatorios': typeof GatedRelatoriosRoute
   '/_gated/': typeof GatedIndexRoute
+  '/_gated/pagina/$id': typeof GatedPaginaIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -129,6 +147,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/reset-password'
+    | '/agenda'
     | '/analise'
     | '/como-usar'
     | '/configuracoes'
@@ -137,10 +156,12 @@ export interface FileRouteTypes {
     | '/metas'
     | '/paineis'
     | '/relatorios'
+    | '/pagina/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
     | '/reset-password'
+    | '/agenda'
     | '/analise'
     | '/como-usar'
     | '/configuracoes'
@@ -150,11 +171,13 @@ export interface FileRouteTypes {
     | '/paineis'
     | '/relatorios'
     | '/'
+    | '/pagina/$id'
   id:
     | '__root__'
     | '/_gated'
     | '/login'
     | '/reset-password'
+    | '/_gated/agenda'
     | '/_gated/analise'
     | '/_gated/como-usar'
     | '/_gated/configuracoes'
@@ -164,6 +187,7 @@ export interface FileRouteTypes {
     | '/_gated/paineis'
     | '/_gated/relatorios'
     | '/_gated/'
+    | '/_gated/pagina/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -200,6 +224,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof GatedIndexRouteImport
+      parentRoute: typeof GatedRoute
+    }
+    '/_gated/agenda': {
+      id: '/_gated/agenda'
+      path: '/agenda'
+      fullPath: '/agenda'
+      preLoaderRoute: typeof GatedAgendaRouteImport
       parentRoute: typeof GatedRoute
     }
     '/_gated/analise': {
@@ -258,10 +289,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GatedRelatoriosRouteImport
       parentRoute: typeof GatedRoute
     }
+    '/_gated/pagina/$id': {
+      id: '/_gated/pagina/$id'
+      path: '/pagina/$id'
+      fullPath: '/pagina/$id'
+      preLoaderRoute: typeof GatedPaginaIdRouteImport
+      parentRoute: typeof GatedRoute
+    }
   }
 }
 
 interface GatedRouteChildren {
+  GatedAgendaRoute: typeof GatedAgendaRoute
   GatedAnaliseRoute: typeof GatedAnaliseRoute
   GatedComoUsarRoute: typeof GatedComoUsarRoute
   GatedConfiguracoesRoute: typeof GatedConfiguracoesRoute
@@ -271,9 +310,11 @@ interface GatedRouteChildren {
   GatedPaineisRoute: typeof GatedPaineisRoute
   GatedRelatoriosRoute: typeof GatedRelatoriosRoute
   GatedIndexRoute: typeof GatedIndexRoute
+  GatedPaginaIdRoute: typeof GatedPaginaIdRoute
 }
 
 const GatedRouteChildren: GatedRouteChildren = {
+  GatedAgendaRoute: GatedAgendaRoute,
   GatedAnaliseRoute: GatedAnaliseRoute,
   GatedComoUsarRoute: GatedComoUsarRoute,
   GatedConfiguracoesRoute: GatedConfiguracoesRoute,
@@ -283,6 +324,7 @@ const GatedRouteChildren: GatedRouteChildren = {
   GatedPaineisRoute: GatedPaineisRoute,
   GatedRelatoriosRoute: GatedRelatoriosRoute,
   GatedIndexRoute: GatedIndexRoute,
+  GatedPaginaIdRoute: GatedPaginaIdRoute,
 }
 
 const GatedRouteWithChildren = GatedRoute._addFileChildren(GatedRouteChildren)

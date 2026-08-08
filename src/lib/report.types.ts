@@ -1,3 +1,5 @@
+import type { ReportProfile } from "./finance.types";
+
 /** Estrutura neutra que representa o estado atual de uma tela para exportação. */
 export type ReportKpi = { label: string; value: string; hint?: string };
 
@@ -33,6 +35,6 @@ export type ReportSnapshot = {
     phone?: string;
     logoUrl?: string;
   };
+  /** Personalização opcional definida pelo usuário nas configurações de relatório. */
+  profile?: ReportProfile;
 };
-
-export const AUTHOR_CREDIT = "Criado por Victor Souza de Aguiar.";
