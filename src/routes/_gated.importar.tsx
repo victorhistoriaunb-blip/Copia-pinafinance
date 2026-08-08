@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { motion } from "motion/react";
 import {
@@ -92,7 +92,6 @@ function ImportPage() {
     if (inputRef.current) inputRef.current.value = "";
   }
 
-  const pending = previews.map((p) => p.file);
   const hasErrors = previews.some((p) => p.status === "erro");
   const readableFiles = previews.filter((p) => p.status !== "erro").map((p) => p.file);
 
@@ -198,48 +197,74 @@ function ImportPage() {
           </button>
         </Panel>
 
-        {pending.length > 0 && (
+        {previews.length > 0 && (
           <Panel
             title="Arquivos selecionados"
             description="Revise antes de gravar os lançamentos na sua conta"
           >
             <ul className="flex flex-col gap-2">
-              {pending.map((f) => (
+              {previews.map((p) => (
                 <li
-                  key={f.name}
+                  key={p.file.name}
                   className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/70 px-3 py-2 text-sm"
                 >
-                  <span className="flex min-w-0 items-center gap-2">
+                  <span className="flex min-w-0 flex-1 items-center gap-2">
                     <FileSpreadsheet className="size-4 shrink-0 text-primary" />
-                    <span className="truncate text-foreground">{f.name}</span>
-                    <span className="shrink-0 text-xs text-muted-foreground">{fmtSize(f.size)}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-foreground">{p.file.name}</span>
+                      <span className="block text-xs">
+                        {p.status === "lendo" && (
+                          <span className="inline-flex items-center gap-1 text-muted-foreground">
+                            <Loader2 className="size-3 animate-spin" /> Lendo arquivo…
+                          </span>
+                        )}
+                        {p.status === "pronto" && (
+                          <span className="inline-flex items-center gap-1 text-success">
+                            <CheckCircle2 className="size-3" /> Pronto · {p.rowCount ?? 0} lançamento(s) reconhecidos
+                          </span>
+                        )}
+                        {p.status === "erro" && (
+                          <span className="inline-flex items-center gap-1 text-destructive">
+                            <AlertTriangle className="size-3 shrink-0" /> {p.error}
+                          </span>
+                        )}
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-xs text-muted-foreground">{fmtSize(p.file.size)}</span>
                   </span>
                   <button
                     type="button"
-                    onClick={() => setPreviews((prev) => prev.filter((x) => x.file.name !== f.name))}
-                    aria-label={`Remover ${f.name} da fila`}
-                    className="grid size-8 place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:border-destructive/50 hover:text-destructive"
+                    onClick={() => setPreviews((prev) => prev.filter((x) => x.file.name !== p.file.name))}
+                    aria-label={`Remover ${p.file.name} da fila`}
+                    className="grid size-10 shrink-0 place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:border-destructive/50 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <Trash2 className="size-3.5" />
                   </button>
                 </li>
               ))}
             </ul>
+            {hasErrors && (
+              <p className="mt-3 flex items-center gap-2 rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning">
+                <Info className="size-3.5 shrink-0" />
+                Arquivos com erro não serão importados agora — remova-os ou corrija e envie novamente. Os demais
+                podem ser confirmados normalmente.
+              </p>
+            )}
             <div className="mt-4 flex flex-wrap gap-3">
               <button
                 type="button"
-                disabled={busy}
+                disabled={busy || readableFiles.length === 0}
                 onClick={() => void confirmImport()}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[image:var(--gradient-primary)] px-5 text-sm font-semibold text-primary-foreground transition-all hover:brightness-110 disabled:opacity-60"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[image:var(--gradient-primary)] px-5 text-sm font-semibold text-primary-foreground transition-all hover:brightness-110 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 {busy ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
-                Confirmar importação
+                Confirmar importação{readableFiles.length > 0 ? ` (${readableFiles.length})` : ""}
               </button>
               <button
                 type="button"
                 disabled={busy}
                 onClick={() => setPreviews([])}
-                className="inline-flex h-11 items-center rounded-xl border border-border px-5 text-sm font-semibold text-foreground transition-colors hover:border-destructive/50 hover:text-destructive"
+                className="inline-flex h-11 items-center rounded-xl border border-border px-5 text-sm font-semibold text-foreground transition-colors hover:border-destructive/50 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 Cancelar
               </button>
