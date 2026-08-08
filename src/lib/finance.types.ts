@@ -111,6 +111,89 @@ export type DailyPoint = { day: string; despesas: number; receitas: number };
 
 export type Goal = { name: string; target: number };
 
+/** Fonte tipográfica aplicada em toda a interface. */
+export type FontChoice = "sistema" | "inter" | "manrope" | "sora" | "ibm-plex" | "lora";
+
+export type Typography = {
+  font: FontChoice;
+  /** Escala global do texto (0.9 a 1.2). */
+  scale: number;
+  headingWeight: "600" | "700" | "800";
+};
+
+/** Preferência de exibição de cada aba do menu lateral. */
+export type NavPref = {
+  /** Id fixo da aba nativa (ex.: "dashboard") ou id da página personalizada. */
+  id: string;
+  label: string;
+  visible: boolean;
+};
+
+/** Bloco disponível para montar uma aba personalizada. */
+export type CustomBlockKind =
+  | "texto"
+  | "kpis"
+  | "fluxo"
+  | "categorias"
+  | "tabela"
+  | "cards"
+  | "vencimentos"
+  | "insights"
+  | "meta";
+
+export type CustomBlock = {
+  id: string;
+  kind: CustomBlockKind;
+  title: string;
+  /** Texto livre quando kind === "texto". */
+  text?: string;
+};
+
+export type CustomPage = {
+  id: string;
+  name: string;
+  blocks: CustomBlock[];
+};
+
+/** Status configurável usado na Agenda. */
+export type AgendaStatus = { id: string; name: string; color: string };
+
+export type AgendaEvent = {
+  id: string;
+  date: string;
+  time: string;
+  title: string;
+  notes: string;
+  statusId: string;
+  amount: number;
+  /** Lançamento financeiro vinculado, quando houver. */
+  recordId: string;
+  kind: "evento" | "lancamento";
+};
+
+/** Campo livre exibido no cabeçalho dos relatórios exportados. */
+export type ReportField = { id: string; label: string; value: string; visible: boolean };
+
+export type ReportTemplate = "institucional" | "minimalista" | "executivo";
+
+export type ReportProfile = {
+  /** Nome do cliente/empresa para quem o relatório é emitido. */
+  clientName: string;
+  reportTitle: string;
+  preparedBy: string;
+  template: ReportTemplate;
+  /** Logo em dataURL enviada pelo usuário (substitui a logo padrão). */
+  logoDataUrl: string;
+  showLogo: boolean;
+  showCover: boolean;
+  showFilters: boolean;
+  showCharts: boolean;
+  showTables: boolean;
+  showNotes: boolean;
+  footerNote: string;
+  fields: ReportField[];
+};
+
 export type AppSettings = {
   appName: string;
   tagline: string;
@@ -131,7 +214,61 @@ export type AppSettings = {
   };
   showInsights: boolean;
   showGoal: boolean;
+  typography: Typography;
+  nav: NavPref[];
+  pages: CustomPage[];
+  agendaStatuses: AgendaStatus[];
+  report: ReportProfile;
 };
+
+export const DEFAULT_TYPOGRAPHY: Typography = {
+  font: "sistema",
+  scale: 1,
+  headingWeight: "700",
+};
+
+export const DEFAULT_AGENDA_STATUSES: AgendaStatus[] = [
+  { id: "previsto", name: "Previsto", color: "#3B82F6" },
+  { id: "confirmado", name: "Confirmado", color: "#22C55E" },
+  { id: "atencao", name: "Atenção", color: "#F59E0B" },
+  { id: "atrasado", name: "Atrasado", color: "#EF4444" },
+];
+
+export const DEFAULT_REPORT_PROFILE: ReportProfile = {
+  clientName: "",
+  reportTitle: "",
+  preparedBy: "",
+  template: "institucional",
+  logoDataUrl: "",
+  showLogo: true,
+  showCover: true,
+  showFilters: true,
+  showCharts: true,
+  showTables: true,
+  showNotes: true,
+  footerNote: "",
+  fields: [],
+};
+
+/** Abas nativas que podem ser renomeadas ou ocultadas. */
+export const NATIVE_TABS = [
+  { id: "dashboard", label: "Dashboard", to: "/" },
+  { id: "paineis", label: "Painéis", to: "/paineis" },
+  { id: "contas", label: "Contas", to: "/contas" },
+  { id: "agenda", label: "Agenda", to: "/agenda" },
+  { id: "importar", label: "Importar Planilhas", to: "/importar" },
+  { id: "analise", label: "Análise", to: "/analise" },
+  { id: "relatorios", label: "Relatórios", to: "/relatorios" },
+  { id: "metas", label: "Metas", to: "/metas" },
+  { id: "como-usar", label: "Como usar", to: "/como-usar" },
+  { id: "configuracoes", label: "Configurações", to: "/configuracoes" },
+] as const;
+
+export const DEFAULT_NAV: NavPref[] = NATIVE_TABS.map((t) => ({
+  id: t.id,
+  label: t.label,
+  visible: true,
+}));
 
 export const DEFAULT_SETTINGS: AppSettings = {
   appName: "PINA Finanças",
@@ -153,7 +290,43 @@ export const DEFAULT_SETTINGS: AppSettings = {
   },
   showInsights: true,
   showGoal: true,
+  typography: DEFAULT_TYPOGRAPHY,
+  nav: DEFAULT_NAV,
+  pages: [],
+  agendaStatuses: DEFAULT_AGENDA_STATUSES,
+  report: DEFAULT_REPORT_PROFILE,
 };
+
+/** Normaliza preferências vindas da nuvem, garantindo campos novos. */
+export function normalizeSettings(raw: unknown): AppSettings {
+  const s = (raw ?? {}) as Partial<AppSettings>;
+  const nav = Array.isArray(s.nav) && s.nav.length > 0 ? s.nav : DEFAULT_NAV;
+  const known = new Set(nav.map((n) => n.id));
+  const pages = Array.isArray(s.pages) ? s.pages : [];
+  const merged = [
+    ...nav,
+    ...DEFAULT_NAV.filter((n) => !known.has(n.id)),
+    ...pages.filter((p) => !known.has(p.id)).map((p) => ({ id: p.id, label: p.name, visible: true })),
+  ];
+  return {
+    ...DEFAULT_SETTINGS,
+    ...s,
+    labels: { ...DEFAULT_SETTINGS.labels, ...(s.labels ?? {}) },
+    typography: { ...DEFAULT_TYPOGRAPHY, ...(s.typography ?? {}) },
+    nav: merged,
+    pages,
+    agendaStatuses:
+      Array.isArray(s.agendaStatuses) && s.agendaStatuses.length > 0
+        ? s.agendaStatuses
+        : DEFAULT_AGENDA_STATUSES,
+    report: {
+      ...DEFAULT_REPORT_PROFILE,
+      ...(s.report ?? {}),
+      fields: Array.isArray(s.report?.fields) ? s.report.fields : [],
+    },
+  };
+}
+
 
 export type DashboardData = {
   period: { current: string; previous: string };
