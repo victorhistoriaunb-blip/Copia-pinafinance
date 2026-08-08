@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import type { ImportedWorkbook, ImportIssue, SheetSummary, Transaction } from "./finance.types";
+import type { AgendaEvent, ImportedWorkbook, ImportIssue, SheetSummary, Transaction } from "./finance.types";
 
 /** Conversão entre o formato do app e as colunas da tabela na nuvem. */
 export type RecordRow = {
@@ -245,5 +245,63 @@ export async function savePrefs(
   const { error } = await supabase
     .from("finance_prefs")
     .upsert({ user_id: userId, ...patch } as never, { onConflict: "user_id" });
+  if (error) throw new Error(error.message);
+}
+
+/* ------------------------------ Agenda ------------------------------ */
+
+export function eventToRow(userId: string, e: AgendaEvent) {
+  return {
+    user_id: userId,
+    id: txt(e.id, 300),
+    date: txt(e.date, 10),
+    time: txt(e.time, 5),
+    title: txt(e.title, 300),
+    notes: txt(e.notes),
+    status_id: txt(e.statusId, 60),
+    amount: num(e.amount),
+    record_id: txt(e.recordId, 300),
+    kind: e.kind === "lancamento" ? "lancamento" : "evento",
+  };
+}
+
+export function eventFromRow(r: Record<string, unknown>): AgendaEvent {
+  const s = (k: string) => String(r[k] ?? "");
+  return {
+    id: s("id"),
+    date: s("date"),
+    time: s("time"),
+    title: s("title"),
+    notes: s("notes"),
+    statusId: s("status_id"),
+    amount: Number(r["amount"] ?? 0),
+    recordId: s("record_id"),
+    kind: r["kind"] === "lancamento" ? "lancamento" : "evento",
+  };
+}
+
+export async function fetchAgenda(userId: string): Promise<AgendaEvent[]> {
+  const { data, error } = await supabase
+    .from("agenda_events")
+    .select("*")
+    .eq("user_id", userId)
+    .order("date", { ascending: true });
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as unknown as Record<string, unknown>[]).map(eventFromRow);
+}
+
+export async function upsertEvent(userId: string, e: AgendaEvent) {
+  const { error } = await supabase
+    .from("agenda_events")
+    .upsert(eventToRow(userId, e) as never, { onConflict: "user_id,id" });
+  if (error) throw new Error(error.message);
+}
+
+export async function deleteEvent(userId: string, id: string) {
+  const { error } = await supabase
+    .from("agenda_events")
+    .delete()
+    .eq("user_id", userId)
+    .eq("id", id);
   if (error) throw new Error(error.message);
 }
