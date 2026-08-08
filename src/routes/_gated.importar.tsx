@@ -238,7 +238,7 @@ function ImportPage() {
               <button
                 type="button"
                 disabled={busy}
-                onClick={() => setPending([])}
+                onClick={() => setPreviews([])}
                 className="inline-flex h-11 items-center rounded-xl border border-border px-5 text-sm font-semibold text-foreground transition-colors hover:border-destructive/50 hover:text-destructive"
               >
                 Cancelar
