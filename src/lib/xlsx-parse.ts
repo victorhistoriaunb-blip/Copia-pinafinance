@@ -133,8 +133,22 @@ function findHeaderRow(rows: unknown[][]) {
 const clip = (v: string, max = 500) => (v.length > max ? `${v.slice(0, max)}…` : v);
 
 export function parseWorkbook(fileId: string, fileName: string, buffer: ArrayBuffer) {
-  // Uint8Array + type "array" é o caminho compatível com todos os navegadores.
-  const wb = XLSX.read(new Uint8Array(buffer), { type: "array", cellDates: true });
+  if (!buffer || buffer.byteLength === 0) {
+    throw new Error("O arquivo está vazio.");
+  }
+  let wb: XLSX.WorkBook;
+  try {
+    // Uint8Array + type "array" é o caminho compatível com todos os navegadores.
+    wb = XLSX.read(new Uint8Array(buffer), { type: "array", cellDates: true });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message.toLowerCase() : "";
+    if (msg.includes("password") || msg.includes("encrypt")) {
+      throw new Error("O arquivo está protegido por senha. Remova a proteção e envie novamente.");
+    }
+    throw new Error(
+      "Formato não suportado ou arquivo corrompido. Salve novamente como .xlsx, .xls ou .csv e tente de novo.",
+    );
+  }
   if (!wb.SheetNames || wb.SheetNames.length === 0) {
     throw new Error("A planilha não tem abas legíveis.");
   }
@@ -146,23 +160,35 @@ export function parseWorkbook(fileId: string, fileName: string, buffer: ArrayBuf
   for (const sheetName of wb.SheetNames) {
     const ws = wb.Sheets[sheetName];
     if (!ws) continue;
-    const rows = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, raw: true, defval: null, blankrows: false });
+    let rows: unknown[][];
+    try {
+      rows = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, raw: true, defval: null, blankrows: false });
+    } catch {
+      issues.push({ level: "aviso", sheet: sheetName, message: "Não foi possível ler esta aba — ela foi ignorada." });
+      continue;
+    }
     if (rows.length === 0) {
+      // Aba vazia é ignorada silenciosamente, sem gerar erro.
       sheets.push({ name: sheetName, rows: 0, imported: 0, skipped: 0, columns: [] });
-      issues.push({ level: "aviso", sheet: sheetName, message: "Aba vazia — nenhum dado encontrado." });
       continue;
     }
 
-    const header = findHeaderRow(rows);
+    let header = findHeaderRow(rows);
     if (!header) {
-      sheets.push({ name: sheetName, rows: rows.length, imported: 0, skipped: rows.length, columns: [] });
-      issues.push({ level: "aviso", sheet: sheetName, message: "Aba sem cabeçalho legível — nada foi importado." });
-      continue;
+      // Estrutura totalmente diferente do esperado: importa mesmo assim, guardando
+      // cada coluna como campo extra do registro, sem descartar os dados.
+      header = { index: -1, map: {}, columns: [], labels: [], score: 0 };
+      issues.push({
+        level: "aviso",
+        sheet: sheetName,
+        message: "Nenhuma coluna reconhecida — os dados foram importados como informações extras de cada registro.",
+      });
     }
 
     const { map, labels } = header;
     const usedCols = new Set(Object.values(map));
     const body = rows.slice(header.index + 1);
+    const genericLabels = header.index === -1 ? (rows[0] ?? []).map((c) => String(c ?? "").trim()) : labels;
     let imported = 0;
     let empty = 0;
 
@@ -201,9 +227,9 @@ export function parseWorkbook(fileId: string, fileName: string, buffer: ArrayBuf
       const extra: Record<string, string> = {};
       row.forEach((c, col) => {
         if (usedCols.has(col)) return;
-        const label = labels[col];
+        const label = genericLabels[col] || `Coluna ${col + 1}`;
         const value = c === null ? "" : String(c).trim();
-        if (label && value) extra[label] = value;
+        if (value) extra[label] = value;
       });
 
       const kindText = norm(text("expenseKind") || categoryText);
@@ -251,7 +277,7 @@ export function parseWorkbook(fileId: string, fileName: string, buffer: ArrayBuf
     });
 
     const missing = (["date", "amount", "category", "type"] as const).filter((f) => map[f] === undefined);
-    if (missing.length > 0) {
+    if (missing.length > 0 && header.index !== -1) {
       const names: Record<string, string> = {
         date: "Data",
         amount: "Valor",

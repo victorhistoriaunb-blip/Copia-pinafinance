@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Download, FileText, Loader2, Presentation, Sheet } from "lucide-react";
+import { Download, FileText, Loader2, Presentation, Settings2, Sheet } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { useFinance } from "@/lib/finance-store";
 import type { ReportSnapshot } from "@/lib/report.types";
+import { ReportSettingsPanel } from "@/components/dashboard/report-settings";
 
 type Build = () => Omit<ReportSnapshot, "brand">;
 
@@ -12,6 +13,7 @@ export function ExportMenu({ build }: { build: Build }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [customize, setCustomize] = useState(false);
 
   async function run(kind: "pdf" | "pptx" | "csv") {
     setBusy(kind);
@@ -27,6 +29,7 @@ export function ExportMenu({ build }: { build: Build }) {
           phone: settings.companyPhone,
           logoUrl: logo,
         },
+        profile: settings.report,
       };
       const mod = await import("@/lib/export-report");
       if (kind === "pdf") await mod.exportPdf(snapshot);
@@ -87,9 +90,26 @@ export function ExportMenu({ build }: { build: Build }) {
               </button>
             ))}
             {error && <p className="px-3 py-2 text-xs text-destructive">{error}</p>}
+            <div className="my-1 border-t border-border" />
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setCustomize(true);
+                setOpen(false);
+              }}
+              className="flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-surface/70"
+            >
+              <Settings2 className="mt-0.5 size-4 shrink-0 text-primary" />
+              <span className="min-w-0">
+                <span className="block text-sm font-medium text-popover-foreground">Personalizar relatório</span>
+                <span className="block text-xs text-muted-foreground">Cliente, logo, template e seções</span>
+              </span>
+            </button>
           </div>
         </>
       )}
+      <ReportSettingsPanel open={customize} onClose={() => setCustomize(false)} />
     </div>
   );
 }

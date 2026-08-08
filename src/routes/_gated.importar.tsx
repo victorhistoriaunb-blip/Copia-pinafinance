@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { motion } from "motion/react";
 import {
@@ -15,6 +15,7 @@ import { useFinance } from "@/lib/finance-store";
 import { Page } from "@/components/dashboard/page";
 import { Panel } from "@/components/dashboard/charts";
 import { downloadTemplate, TEMPLATE_HEADERS } from "@/lib/xlsx-template";
+import { parseFile } from "@/lib/xlsx-parse";
 
 export const Route = createFileRoute("/_gated/importar")({
   head: () => ({
@@ -41,34 +42,68 @@ export const Route = createFileRoute("/_gated/importar")({
 const fmtSize = (bytes: number) =>
   bytes > 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
 
+type Preview = {
+  file: File;
+  status: "lendo" | "pronto" | "erro";
+  error?: string;
+  rowCount?: number;
+};
+
+function readErrorMessage(err: unknown): string {
+  if (err instanceof Error && err.message) return err.message;
+  return "Não foi possível ler este arquivo. Verifique se ele não está corrompido ou protegido por senha.";
+}
+
 function ImportPage() {
   const { files, importFiles, removeFile, clearAll, transactions } = useFinance();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [pending, setPending] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<Preview[]>([]);
   const [results, setResults] = useState<{ name: string; error?: string }[]>([]);
+
+  /** Confere cada arquivo em paralelo, sem travar a tela quando um falhar. */
+  const checkFile = useCallback((file: File) => {
+    parseFile(file)
+      .then((wb) => {
+        setPreviews((prev) =>
+          prev.map((p) =>
+            p.file === file ? { ...p, status: "pronto", rowCount: wb.transactions.length } : p,
+          ),
+        );
+      })
+      .catch((err) => {
+        setPreviews((prev) =>
+          prev.map((p) => (p.file === file ? { ...p, status: "erro", error: readErrorMessage(err) } : p)),
+        );
+      });
+  }, []);
 
   /** Só prepara a fila — a gravação acontece no "Confirmar importação". */
   function stage(list: FileList | null) {
     if (!list || list.length === 0) return;
     setResults([]);
-    setPending((prev) => {
-      const map = new Map(prev.map((f) => [f.name, f]));
-      for (const f of Array.from(list)) map.set(f.name, f);
-      return Array.from(map.values());
-    });
+    const incoming = Array.from(list);
+    setPreviews((prev) => [
+      ...prev.filter((p) => !incoming.some((f) => f.name === p.file.name)),
+      ...incoming.map((f) => ({ file: f, status: "lendo" as const })),
+    ]);
+    for (const f of incoming) checkFile(f);
     if (inputRef.current) inputRef.current.value = "";
   }
 
+  const pending = previews.map((p) => p.file);
+  const hasErrors = previews.some((p) => p.status === "erro");
+  const readableFiles = previews.filter((p) => p.status !== "erro").map((p) => p.file);
+
   async function confirmImport() {
-    if (pending.length === 0) return;
+    if (readableFiles.length === 0) return;
     setBusy(true);
     setResults([]);
     try {
-      const res = await importFiles(pending);
+      const res = await importFiles(readableFiles);
       setResults(res);
-      setPending([]);
+      setPreviews((prev) => prev.filter((p) => p.status === "erro"));
     } finally {
       setBusy(false);
     }

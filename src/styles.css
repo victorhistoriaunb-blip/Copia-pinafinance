@@ -129,11 +129,13 @@
 
   html {
     color-scheme: dark;
+    font-size: calc(16px * var(--app-scale, 1));
   }
 
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
+    font-family: var(--app-font, ui-sans-serif, system-ui, sans-serif);
     font-feature-settings: "cv02", "cv03", "cv04", "tnum";
     -webkit-font-smoothing: antialiased;
   }

@@ -1,11 +1,23 @@
 import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Check, Loader2 } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, Loader2, Plus, Trash2 } from "lucide-react";
 import { useFinance } from "@/lib/finance-store";
 import { useAuth } from "@/lib/auth-context";
 import { Page } from "@/components/dashboard/page";
 import { Panel } from "@/components/dashboard/charts";
-import { DEFAULT_SETTINGS, type AppSettings } from "@/lib/finance.types";
+import {
+  DEFAULT_AGENDA_STATUSES,
+  DEFAULT_NAV,
+  DEFAULT_SETTINGS,
+  NATIVE_TABS,
+  type AgendaStatus,
+  type AppSettings,
+  type CustomBlock,
+  type CustomBlockKind,
+  type CustomPage,
+  type FontChoice,
+  type NavPref,
+} from "@/lib/finance.types";
 
 export const Route = createFileRoute("/_gated/configuracoes")({
   head: () => ({
