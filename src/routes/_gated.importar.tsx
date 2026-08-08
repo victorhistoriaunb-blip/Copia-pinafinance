@@ -216,7 +216,7 @@ function ImportPage() {
                   </span>
                   <button
                     type="button"
-                    onClick={() => setPending((prev) => prev.filter((x) => x.name !== f.name))}
+                    onClick={() => setPreviews((prev) => prev.filter((x) => x.file.name !== f.name))}
                     aria-label={`Remover ${f.name} da fila`}
                     className="grid size-8 place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:border-destructive/50 hover:text-destructive"
                   >
